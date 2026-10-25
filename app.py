@@ -1,6 +1,7 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
+import os
 from datetime import datetime
 from google import genai
 from google.genai import types
@@ -10,6 +11,7 @@ st.set_page_config(page_title="Union Steward Portal", page_icon="✊", layout="w
 
 DB_NAME = "union_grievances.db"
 ADMIN_EMAIL = "cfetrow0201@gmail.com"
+MASTER_CONTRACT_PATH = "master_contract.pdf"
 
 # --- 1. SETUP DATABASE ---
 def init_db():
@@ -91,12 +93,22 @@ def load_grievances():
     conn.close()
     return df
 
-# --- 2. SESSION STATE FOR LOGIN ---
+# --- 2. GET API KEY SECURELY (FROM STREAMLIT SECRETS OR FALLBACK) ---
+def get_gemini_key():
+    try:
+        if "GEMINI_API_KEY" in st.secrets:
+            return st.secrets["GEMINI_API_KEY"]
+    except Exception:
+        pass
+    # Fallback to sidebar if secrets aren't set up yet
+    return st.sidebar.text_input("🔑 Gemini API Key (Admin Override)", type="password", value="")
+
+# --- 3. SESSION STATE FOR LOGIN ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.user_email = ""
 
-# --- 3. LOGIN GATE ---
+# --- 4. LOGIN GATE ---
 if not st.session_state.logged_in:
     st.title("✊ Union Steward Portal & Grievance Pipeline")
     st.markdown("### Secure Access Gateway")
@@ -111,31 +123,49 @@ if not st.session_state.logged_in:
             st.error("❌ Access Denied: This email is not authorized on the whitelist.")
     st.stop()
 
-# --- 4. MAIN APP INTERFACE ---
+# --- 5. MAIN APP INTERFACE ---
 st.title("✊ Union Steward Portal & Grievance Pipeline")
 st.success(f"🔓 Logged in as: **{st.session_state.user_email}**")
 
-# Get Gemini API key from Streamlit Secrets or sidebar input
-api_key = st.sidebar.text_input("🔑 Gemini API Key", type="password", value="")
+api_key = get_gemini_key()
 
 tab1, tab2, tab3 = st.tabs(["📖 Contract Expert (AI Search)", "📋 Grievance Pipeline", "⚙️ Manage Access List"])
 
 with tab1:
-    st.subheader("Contract Expert - AI Search")
-    uploaded_pdf = st.file_uploader("Upload Contract / CBA / Handbook (PDF)", type=["pdf"])
+    st.subheader("Contract Expert - AI Search (Master Hub)")
+    
+    # Only admin can update the master contract file
+    if st.session_state.user_email == ADMIN_EMAIL.lower():
+        uploaded_pdf = st.file_uploader("Upload / Replace Master Contract CBA (PDF)", type=["pdf"])
+        if uploaded_pdf is not None:
+            with open(MASTER_CONTRACT_PATH, "wb") as f:
+                f.write(uploaded_pdf.getbuffer())
+            st.success("✅ Master contract updated successfully for all users!")
+    
+    # Check if a master contract is active
+    if os.path.exists(MASTER_CONTRACT_PATH):
+        st.info("📂 Active Master Contract loaded and shared globally for all stewards.")
+    else:
+        st.warning("⚠️ No master contract found yet. Admin needs to upload one.")
+
     question = st.text_area("Contract Question", placeholder="e.g., What is the deadline to file a Step 1 grievance?")
     
     if st.button("Search Contract", type="primary"):
         if not api_key:
-            st.warning("⚠️ Please provide your Gemini API key in the sidebar.")
+            st.warning("⚠️ Gemini API key is missing. Please configure it in Streamlit Secrets.")
         elif not question:
             st.warning("⚠️ Please type a question.")
+        elif not os.path.exists(MASTER_CONTRACT_PATH):
+            st.warning("⚠️ No contract PDF available to search.")
         else:
             try:
                 client = genai.Client(api_key=api_key.strip())
                 contents = []
-                if uploaded_pdf is not None:
-                    contents.append(types.Part.from_bytes(data=uploaded_pdf.getvalue(), mime_type="application/pdf"))
+                
+                with open(MASTER_CONTRACT_PATH, "rb") as f:
+                    pdf_bytes = f.read()
+                
+                contents.append(types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"))
                 contents.append(f"Question: {question}")
                 
                 response = client.models.generate_content(
@@ -179,7 +209,7 @@ with tab2:
         st.subheader("Active Grievance Pipeline")
         df = load_grievances()
         if not df.empty:
-            st.dataframe(df[["user_email", "grievant", "occ_date", "articles", "step", "steward", "timestamp"]], use_container_width=True)
+            st.dataframe(df[["user_email", "grievant", "occ_date", "articles", "step", "steward", "timestamp"]], use_container_woodyunl if "user_email" in df.columns else df, use_container_width=True)
         else:
             st.info("No grievances logged yet.")
 
