@@ -219,8 +219,8 @@ with tab3:
             email_addr = row[0]
             col_email, col_btn = st.columns([3, 1])
             with col_email:
-                # Green text for active access
-                st.markdown(f"<p style='color: green; font-weight: bold;'>• {email_addr}</p>", unsafe_allow_html=True)
+                # Yellow text for active access
+                st.markdown(f"<p style='color: #FFD700; font-weight: bold;'>• {email_addr}</p>", unsafe_allow_html=True)
             with col_btn:
                 if email_addr != ADMIN_EMAIL.lower():
                     if st.button("Revoke", key=f"revoke_{email_addr}"):
@@ -229,7 +229,7 @@ with tab3:
                         cursor.execute("DELETE FROM authorized_emails WHERE email = ?", (email_addr,))
                         conn.commit()
                         conn.close()
-                        st.markdown(f"<p style='color: red;'>🚫 Revoked access for {email_addr}</p>", unsafe_allow_html=True)
+                        st.success(f"🚫 Revoked and deleted access for {email_addr}")
                         st.rerun()
                 else:
                     st.text("(Master Admin)")
