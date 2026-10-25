@@ -55,20 +55,6 @@ def is_email_authorized(email):
     conn.close()
     return result is not None
 
-def add_authorized_email(new_email):
-    if not new_email or "@" not in new_email:
-        return "⚠️ Please enter a valid email address."
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    try:
-        cursor.execute("INSERT INTO authorized_emails (email) VALUES (?)", (new_email.strip().lower(),))
-        conn.commit()
-        conn.close()
-        return f"✅ Successfully added {new_email}!"
-    except sqlite3.IntegrityError:
-        conn.close()
-        return f"⚠️ {new_email} is already on the list."
-
 def get_authorized_emails_list():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -93,14 +79,13 @@ def load_grievances():
     conn.close()
     return df
 
-# --- 2. GET API KEY SECURELY (FROM STREAMLIT SECRETS OR FALLBACK) ---
+# --- 2. GET API KEY SECURELY ---
 def get_gemini_key():
     try:
         if "GEMINI_API_KEY" in st.secrets:
             return st.secrets["GEMINI_API_KEY"]
     except Exception:
         pass
-    # Fallback to sidebar if secrets aren't set up yet
     return st.sidebar.text_input("🔑 Gemini API Key (Admin Override)", type="password", value="")
 
 # --- 3. SESSION STATE FOR LOGIN ---
@@ -134,7 +119,6 @@ tab1, tab2, tab3 = st.tabs(["📖 Contract Expert (AI Search)", "📋 Grievance 
 with tab1:
     st.subheader("Contract Expert - AI Search (Master Hub)")
     
-    # Only admin can update the master contract file
     if st.session_state.user_email == ADMIN_EMAIL.lower():
         uploaded_pdf = st.file_uploader("Upload / Replace Master Contract CBA (PDF)", type=["pdf"])
         if uploaded_pdf is not None:
@@ -142,7 +126,6 @@ with tab1:
                 f.write(uploaded_pdf.getbuffer())
             st.success("✅ Master contract updated successfully for all users!")
     
-    # Check if a master contract is active
     if os.path.exists(MASTER_CONTRACT_PATH):
         st.info("📂 Active Master Contract loaded and shared globally for all stewards.")
     else:
@@ -161,10 +144,8 @@ with tab1:
             try:
                 client = genai.Client(api_key=api_key.strip())
                 contents = []
-                
                 with open(MASTER_CONTRACT_PATH, "rb") as f:
                     pdf_bytes = f.read()
-                
                 contents.append(types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"))
                 contents.append(f"Question: {question}")
                 
@@ -209,7 +190,7 @@ with tab2:
         st.subheader("Active Grievance Pipeline")
         df = load_grievances()
         if not df.empty:
-            st.dataframe(df[["user_email", "grievant", "occ_date", "articles", "step", "steward", "timestamp"]], use_container_woodyunl if "user_email" in df.columns else df, use_container_width=True)
+            st.dataframe(df[["user_email", "grievant", "occ_date", "articles", "step", "steward", "timestamp"]], use_container_width=True)
         else:
             st.info("No grievances logged yet.")
 
@@ -218,12 +199,47 @@ with tab3:
         st.subheader("Manage Authorized Access List")
         new_email = st.text_input("New Steward/Office Email")
         if st.button("Authorize Email"):
-            msg = add_authorized_email(new_email)
-            st.success(msg)
-            st.rerun()
+            if not new_email or "@" not in new_email:
+                st.error("⚠️ Please enter a valid email address.")
+            else:
+                conn = sqlite3.connect(DB_NAME)
+                cursor = conn.cursor()
+                try:
+                    cursor.execute("INSERT INTO authorized_emails (email) VALUES (?)", (new_email.strip().lower(),))
+                    conn.commit()
+                    st.success(f"✅ Successfully added {new_email}!")
+                    st.rerun()
+                except sqlite3.IntegrityError:
+                    st.error(f"⚠️ {new_email} is already on the list.")
+                finally:
+                    conn.close()
         
+        st.markdown("---")
         st.markdown("#### Currently Authorized:")
-        for e in get_authorized_emails_list():
-            st.text(f"• {e}")
+        
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("SELECT email FROM authorized_emails")
+        authorized_rows = cursor.fetchall()
+        conn.close()
+        
+        for row in authorized_rows:
+            email_addr = row[0]
+            col_email, col_btn = st.columns([3, 1])
+            with col_email:
+                st.text(f"• {email_addr}")
+            with col_btn:
+                if email_addr != ADMIN_EMAIL.lower():
+                    if st.button("Revoke", key=f"revoke_{email_addr}"):
+                        conn = sqlite3.connect(DB_NAME)
+                        cursor = conn.cursor()
+                        cursor.execute("DELETE FROM authorized_emails WHERE email = ?", (email_addr,))
+                        conn.commit()
+                        conn.close()
+                        st.success(f"🚫 Revoked access for {email_addr}")
+                        st.rerun()
+                else:
+                    st.text("(Master Admin)")
     else:
         st.warning("🔒 This tab is restricted to the master administrator.")
+    
