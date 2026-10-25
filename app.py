@@ -55,14 +55,6 @@ def is_email_authorized(email):
     conn.close()
     return result is not None
 
-def get_authorized_emails_list():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT email FROM authorized_emails")
-    rows = cursor.fetchall()
-    conn.close()
-    return [row[0] for row in rows]
-
 def save_grievance(email, grievant, date, articles, step, steward, facts, remedy, image_name):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -227,7 +219,8 @@ with tab3:
             email_addr = row[0]
             col_email, col_btn = st.columns([3, 1])
             with col_email:
-                st.text(f"• {email_addr}")
+                # Green text for active access
+                st.markdown(f"<p style='color: green; font-weight: bold;'>• {email_addr}</p>", unsafe_allow_html=True)
             with col_btn:
                 if email_addr != ADMIN_EMAIL.lower():
                     if st.button("Revoke", key=f"revoke_{email_addr}"):
@@ -236,10 +229,9 @@ with tab3:
                         cursor.execute("DELETE FROM authorized_emails WHERE email = ?", (email_addr,))
                         conn.commit()
                         conn.close()
-                        st.success(f"🚫 Revoked access for {email_addr}")
+                        st.markdown(f"<p style='color: red;'>🚫 Revoked access for {email_addr}</p>", unsafe_allow_html=True)
                         st.rerun()
                 else:
                     st.text("(Master Admin)")
     else:
         st.warning("🔒 This tab is restricted to the master administrator.")
-    
