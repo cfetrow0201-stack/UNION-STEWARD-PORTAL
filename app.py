@@ -1,7 +1,7 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-import io
+import os
 from datetime import datetime
 from google import genai
 from google.genai import types
@@ -11,8 +11,9 @@ st.set_page_config(page_title="Union Steward Portal", page_icon="✊", layout="w
 
 DB_NAME = "union_grievances.db"
 ADMIN_EMAIL = "cfetrow0201@gmail.com"
+MASTER_CONTRACT_PATH = "master_contract.pdf"
 
-# --- 1. SETUP DATABASE & PERMANENT CONTRACT STORAGE ---
+# --- 1. SETUP DATABASE & PERMANENT STORAGE ---
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -41,7 +42,7 @@ def init_db():
         )
     ''')
     
-    # Master Contract table (stores PDF bytes securely in SQLite so it never resets)
+    # Master Contract table (stores PDF bytes securely in SQLite)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS master_contract (
             id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -91,7 +92,7 @@ def get_master_contract_from_db():
     cursor.execute("SELECT pdf_data, file_name FROM master_contract WHERE id = 1")
     row = cursor.fetchone()
     conn.close()
-    return row # Returns (pdf_bytes, file_name) or None
+    return row
 
 def save_grievance(email, grievant, date, articles, step, steward, facts, remedy, image_name):
     conn = sqlite3.connect(DB_NAME)
@@ -100,6 +101,24 @@ def save_grievance(email, grievant, date, articles, step, steward, facts, remedy
         INSERT INTO grievances (user_email, grievant, occ_date, articles, step, steward, facts, remedy, evidence_image)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (email.strip().lower(), grievant, date, articles, step, steward, facts, remedy, image_name))
+    conn.commit()
+    conn.close()
+
+def update_grievance(g_id, grievant, date, articles, step, steward, facts, remedy):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute('''
+        UPDATE grievances 
+        SET grievant = ?, occ_date = ?, articles = ?, step = ?, steward = ?, facts = ?, remedy = ?
+        WHERE id = ?
+    ''', (grievant, date, articles, step, steward, facts, remedy, g_id))
+    conn.commit()
+    conn.close()
+
+def delete_grievance(g_id):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM grievances WHERE id = ?", (g_id,))
     conn.commit()
     conn.close()
 
@@ -144,12 +163,11 @@ st.success(f"🔓 Logged in as: **{st.session_state.user_email}**")
 
 api_key = get_gemini_key()
 
-tab1, tab2, tab3 = st.tabs(["📖 Contract Expert (AI Search)", "📋 Grievance Pipeline", "⚙️ Manage Access List"])
+tab1, tab2, tab3 = st.tabs(["📖 Contract Expert (AI Search)", "📋 Grievance Pipeline", "⚙️ Admin & Access Control"])
 
 with tab1:
     st.subheader("Contract Expert - AI Search (Master Hub)")
     
-    # Only admin can update the master contract
     if st.session_state.user_email == ADMIN_EMAIL.lower():
         uploaded_pdf = st.file_uploader("Upload / Replace Master Contract CBA (PDF)", type=["pdf"])
         if uploaded_pdf is not None:
@@ -222,13 +240,58 @@ with tab2:
         st.subheader("Active Grievance Pipeline")
         df = load_grievances()
         if not df.empty:
-            st.dataframe(df[["user_email", "grievant", "occ_date", "articles", "step", "steward", "timestamp"]], use_container_width=True)
+            st.dataframe(df[["id", "user_email", "grievant", "occ_date", "articles", "step", "steward", "timestamp"]], use_container_width=True)
         else:
             st.info("No grievances logged yet.")
 
 with tab3:
     if st.session_state.user_email == ADMIN_EMAIL.lower():
-        st.subheader("Manage Authorized Access List")
+        st.subheader("⚙️ Admin Controls: Manage Grievance Pipeline")
+        
+        df_grievances = load_grievances()
+        if not df_grievances.empty:
+            # Select grievance to edit/delete
+            grievant_options = {f"ID {row['id']}: {row['grievant']} ({row['articles']})": row['id'] for index, row in df_grievances.iterrows()}
+            selected_label = st.selectbox("Select Grievance to Edit or Delete", options=list(grievant_options.keys()))
+            selected_id = grievant_options[selected_label]
+            
+            # Fetch current values for this grievance
+            record = df_grievances[df_grievances['id'] == selected_id].iloc[0]
+            
+            with st.form("edit_grievance_form"):
+                st.markdown(f"**Editing Grievance Record ID: {selected_id}** (Submitted by: {record['user_email']})")
+                e_name = st.text_input("Grievant Name & Department", value=record['grievant'])
+                e_date = st.text_input("Date of Occurrence", value=record['occ_date'])
+                e_articles = st.text_input("Contract Article(s) Violated", value=record['articles'])
+                
+                steps_list = ["Step 1 (Supervisor)", "Step 2 (HR / Dept Head)", "Step 3 (Plant Mgr)", "Arbitration"]
+                default_step_idx = steps_list.index(record['step']) if record['step'] in steps_list else 0
+                e_step = st.selectbox("Current Step", steps_list, index=default_step_idx)
+                
+                e_steward = st.text_input("Assigned Steward", value=record['steward'])
+                e_facts = st.text_area("Statement of Facts / Notes", value=record['facts'])
+                e_remedy = st.text_area("Remedy Demanded", value=record['remedy'])
+                
+                col_update, col_delete = st.columns(2)
+                with col_update:
+                    update_submitted = st.form_submit_button("💾 Save Changes", type="primary")
+                with col_delete:
+                    delete_submitted = st.form_submit_button("🗑️ Delete Grievance", type="secondary")
+                
+                if update_submitted:
+                    update_grievance(selected_id, e_name, e_date, e_articles, e_step, e_steward, e_facts, e_remedy)
+                    st.success(f"✅ Successfully updated Grievance ID {selected_id}!")
+                    st.rerun()
+                
+                if delete_submitted:
+                    delete_grievance(selected_id)
+                    st.success(f"🗑️ Successfully deleted Grievance ID {selected_id}!")
+                    st.rerun()
+        else:
+            st.info("No grievances in the pipeline to edit or delete.")
+        
+        st.markdown("---")
+        st.subheader("⚙️ Manage Authorized Access List")
         new_email = st.text_input("New Steward/Office Email")
         if st.button("Authorize Email"):
             if not new_email or "@" not in new_email:
