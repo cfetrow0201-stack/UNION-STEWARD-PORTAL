@@ -8,7 +8,7 @@ from google import genai
 from google.genai import types
 
 # --- PAGE CONFIG & USW INDUSTRIAL STYLING ---
-st.set_page_config(page_title="USW // COMMAND CENTER", page_icon="✊", layout="wide")
+st.set_page_config(page_title="USW // COMMAND CENTER", page_icon="🛡️", layout="wide")
 
 # Custom CSS with USW Gold/Blue Palette and Steel Industrial Aesthetics
 st.markdown("""
@@ -253,10 +253,9 @@ if "logged_in" not in st.session_state:
 
 # --- 4. LOGIN GATE (USW Terminal Style) ---
 if not st.session_state.logged_in:
-    st.markdown("<h1 style='text-align: center; color: #FFD700;'>✊ UNITED STEELWORKERS // COMMAND ✊</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #FFD700;'>🛡️ UNITED STEELWORKERS // COMMAND 🛡️</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; font-family: monospace; color: #94a3b8;'>SECURE STEWARD PORTAL // AUTHENTICATION REQUIRED</p>", unsafe_allow_html=True)
     
-    # High-tech industrial steel banner image incorporated into login
     st.image("https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=1200&q=80", use_container_width=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -276,11 +275,10 @@ if not st.session_state.logged_in:
     st.stop()
 
 # --- 5. MAIN APP INTERFACE ---
-st.markdown("<h1 style='color: #FFD700;'>✊ USW // STEWARD COMMAND CENTER</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='color: #FFD700;'>🛡️ USW // STEWARD COMMAND CENTER</h1>", unsafe_allow_html=True)
 st.markdown(f"<span class='status-badge'>🟢 ACTIVE SESSION // {st.session_state.user_email.upper()}</span>", unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
-# High-res industrial steel banner in main dashboard
 st.image("https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=1400&q=80", use_container_width=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
