@@ -7,61 +7,63 @@ from datetime import datetime
 from google import genai
 from google.genai import types
 
-# --- PAGE CONFIG & USW INDUSTRIAL STYLING ---
+# --- PAGE CONFIG & ENHANCED CYBER STYLING ---
 st.set_page_config(page_title="USW // COMMAND CENTER", page_icon="🛡️", layout="wide")
 
-# Custom CSS with USW Gold/Blue Palette and Steel Industrial Aesthetics
+# Custom CSS with Glowing Cyber Grid & High-Contrast Visuals
 st.markdown("""
     <style>
-    /* Global Industrial Dark Theme with Steel Texture Feel */
+    /* Global Deep Cyber Theme with Glowing Grid Overlay */
     .stApp {
-        background-color: #0b0f19;
+        background-color: #060913;
         background-image: 
-            linear-gradient(rgba(255, 215, 0, 0.02) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 215, 0, 0.02) 1px, transparent 1px);
-        background-size: 40px 40px;
-        color: #e2e8f0;
+            radial-gradient(circle at 50% 0%, rgba(255, 215, 0, 0.08) 0%, transparent 60%),
+            linear-gradient(rgba(255, 215, 0, 0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 215, 0, 0.04) 1px, transparent 1px);
+        background-size: 100% 100%, 35px 35px, 35px 35px;
+        color: #f8fafc;
     }
     
-    /* Headers & Typography (USW Gold & Steel White) */
+    /* Headers & Typography (High-Visibility USW Gold) */
     h1, h2, h3 {
         font-family: 'Courier New', Courier, monospace;
         letter-spacing: 1.5px;
         color: #FFD700 !important;
-        text-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
+        text-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
     }
     
-    /* Industrial Glass Cards with USW Gold Left Border */
+    /* Industrial Glass Cards with Glowing Border */
     .tech-card {
-        background: rgba(15, 23, 42, 0.9);
-        border: 1px solid #1e293b;
-        border-left: 4px solid #FFD700;
+        background: rgba(11, 17, 32, 0.92);
+        border: 1px solid rgba(255, 215, 0, 0.3);
+        border-left: 5px solid #FFD700;
         padding: 20px;
-        border-radius: 6px;
+        border-radius: 8px;
         margin-bottom: 20px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), inset 0 0 15px rgba(255, 215, 0, 0.03);
     }
     
-    /* USW Active Badge */
+    /* USW Active Badge with Neon Glow */
     .status-badge {
-        background-color: rgba(255, 215, 0, 0.1);
+        background-color: rgba(255, 215, 0, 0.15);
         border: 1px solid #FFD700;
         color: #FFD700;
-        padding: 6px 12px;
+        padding: 6px 14px;
         border-radius: 4px;
         font-family: monospace;
         font-size: 13px;
         font-weight: bold;
-        box-shadow: 0 0 10px rgba(255, 215, 0, 0.15);
+        box-shadow: 0 0 12px rgba(255, 215, 0, 0.25);
     }
     
     /* Streamlit Tabs Adjustments */
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
-        background-color: rgba(15, 23, 42, 0.95);
+        background-color: rgba(11, 17, 32, 0.95);
         padding: 10px;
-        border-radius: 6px;
-        border: 1px solid #1e293b;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 215, 0, 0.2);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     }
     .stTabs [data-baseweb="tab"] {
         color: #94a3b8;
@@ -72,7 +74,7 @@ st.markdown("""
         background-color: #1e293b !important;
         color: #FFD700 !important;
         border-bottom: 2px solid #FFD700 !important;
-        box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
+        box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
     }
     </style>
 """, unsafe_allow_html=True)
