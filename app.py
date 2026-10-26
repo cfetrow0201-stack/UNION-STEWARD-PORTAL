@@ -483,7 +483,6 @@ with tab_safety:
     
     search_term = st.text_input("🔍 Search Directory by Name, Plant, or Area:", "")
     
-    # Convert data into clickable HTML rows for mobile friendliness
     html_table = """
     <style>
         .safety-table {
