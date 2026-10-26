@@ -2,6 +2,7 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import os
+import random
 from datetime import datetime
 from google import genai
 from google.genai import types
@@ -35,10 +36,11 @@ def init_db():
         )
     ''')
     
-    # Authorized Emails table
+    # Authorized Emails table (now includes a PIN column)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS authorized_emails (
-            email TEXT PRIMARY KEY
+            email TEXT PRIMARY KEY,
+            pin TEXT
         )
     ''')
     
@@ -52,28 +54,52 @@ def init_db():
         )
     ''')
     
-    # Seed default whitelist only if empty
+    # Seed default whitelist with default pins only if empty
     cursor.execute("SELECT COUNT(*) FROM authorized_emails")
     count = cursor.fetchone()[0]
     if count == 0:
-        default_emails = [ADMIN_EMAIL, "admin@union.org", "steward1@union.org"]
-        for email in default_emails:
-            cursor.execute("INSERT OR IGNORE INTO authorized_emails (email) VALUES (?)", (email,))
+        default_data = [
+            (ADMIN_EMAIL, "0000"),
+            ("admin@union.org", "1234"),
+            ("steward1@union.org", "5678")
+        ]
+        for email, pin in default_data:
+            cursor.execute("INSERT OR IGNORE INTO authorized_emails (email, pin) VALUES (?, ?)", (email, pin))
             
     conn.commit()
     conn.close()
 
 init_db()
 
-def is_email_authorized(email):
-    if not email or "@" not in email:
+def verify_credentials(email, pin):
+    if not email or "@" not in email or not pin:
         return False
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute("SELECT email FROM authorized_emails WHERE email = ?", (email.strip().lower(),))
+    cursor.execute("SELECT pin FROM authorized_emails WHERE email = ?", (email.strip().lower(),))
     result = cursor.fetchone()
     conn.close()
-    return result is not None
+    
+    if result and result[0] == pin.strip():
+        return True
+    return False
+
+def add_authorized_email(email):
+    clean_email = email.strip().lower()
+    # Generate a random 4-digit PIN (e.g., "4821")
+    random_pin = f"{random.randint(0, 9999):04d}"
+    
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO authorized_emails (email, pin) VALUES (?, ?)", (clean_email, random_pin))
+        conn.commit()
+        success = True
+    except sqlite3.IntegrityError:
+        success = False
+    finally:
+        conn.close()
+    return success
 
 def save_document_to_db(doc_type, uploaded_file):
     conn = sqlite3.connect(DB_NAME)
@@ -99,7 +125,7 @@ def get_document_from_db(doc_type):
     cursor.execute("SELECT pdf_data, file_name FROM master_documents WHERE doc_type = ?", (doc_type,))
     row = cursor.fetchone()
     conn.close()
-    return row # Returns (pdf_bytes, file_name) or None
+    return row
 
 def save_grievance(email, grievant, date, articles, step, steward, committeeman, facts, remedy, image_name):
     conn = sqlite3.connect(DB_NAME)
@@ -149,19 +175,23 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.user_email = ""
 
-# --- 4. LOGIN GATE ---
+# --- 4. LOGIN GATE (Email + PIN) ---
 if not st.session_state.logged_in:
     st.title("✊ Union Steward Portal & Grievance Pipeline")
-    st.markdown("### Secure Access Gateway")
+    st.markdown("### Secure Access Gateway (PIN Protected)")
     
-    email_attempt = st.text_input("Enter your authorized email address:")
-    if st.button("Access Portal", type="primary"):
-        if is_email_authorized(email_attempt):
-            st.session_state.logged_in = True
-            st.session_state.user_email = email_attempt.strip().lower()
-            st.rerun()
-        else:
-            st.error("❌ Access Denied: This email is not authorized on the whitelist.")
+    with st.form("login_form"):
+        email_attempt = st.text_input("Authorized Email Address:")
+        pin_attempt = st.text_input("4-Digit Access PIN:", type="password", max_chars=4)
+        login_submitted = st.form_submit_button("Access Portal", type="primary")
+        
+        if login_submitted:
+            if verify_credentials(email_attempt, pin_attempt):
+                st.session_state.logged_in = True
+                st.session_state.user_email = email_attempt.strip().lower()
+                st.rerun()
+            else:
+                st.error("❌ Access Denied: Invalid email address or 4-digit PIN.")
     st.stop()
 
 # --- 5. MAIN APP INTERFACE ---
@@ -356,38 +386,37 @@ with tab3:
             st.info("No grievances in the pipeline to edit or delete.")
         
         st.markdown("---")
-        st.subheader("⚙️ Manage Authorized Access List")
+        st.subheader("⚙️ Manage Authorized Access List & Assigned PINs")
         new_email = st.text_input("New Steward/Office Email")
-        if st.button("Authorize Email"):
+        if st.button("Authorize Email & Assign PIN"):
             if not new_email or "@" not in new_email:
                 st.error("⚠️ Please enter a valid email address.")
             else:
-                conn = sqlite3.connect(DB_NAME)
-                cursor = conn.cursor()
-                try:
-                    cursor.execute("INSERT INTO authorized_emails (email) VALUES (?)", (new_email.strip().lower(),))
-                    conn.commit()
-                    st.success(f"✅ Successfully added {new_email}!")
+                if add_authorized_email(new_email):
+                    st.success(f"✅ Successfully added {new_email} with an auto-generated PIN!")
                     st.rerun()
-                except sqlite3.IntegrityError:
+                else:
                     st.error(f"⚠️ {new_email} is already on the list.")
-                finally:
-                    conn.close()
         
         st.markdown("---")
-        st.markdown("#### Currently Authorized:")
+        st.markdown("#### Currently Authorized & Assigned PINs:")
         
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
-        cursor.execute("SELECT email FROM authorized_emails")
+        cursor.execute("SELECT email, pin FROM authorized_emails")
         authorized_rows = cursor.fetchall()
         conn.close()
         
         for row in authorized_rows:
             email_addr = row[0]
+            pin_code = row[1]
             col_email, col_btn = st.columns([3, 1])
             with col_email:
-                st.markdown(f"<p style='color: #FFD700; font-weight: bold;'>• {email_addr}</p>", unsafe_allow_html=True)
+                # Display email in bright yellow with its assigned PIN clearly visible to admin
+                display_text = f"• {email_addr} &nbsp;&nbsp;|&nbsp;&nbsp; 🔑 PIN: **{pin_code}**"
+                if email_addr == ADMIN_EMAIL.lower():
+                    display_text += " (Master Admin)"
+                st.markdown(f"<p style='color: #FFD700; font-weight: bold;'>{display_text}</p>", unsafe_allow_html=True)
             with col_btn:
                 if email_addr != ADMIN_EMAIL.lower():
                     if st.button("Revoke", key=f"revoke_{email_addr}"):
@@ -399,6 +428,6 @@ with tab3:
                         st.success(f"🚫 Revoked and deleted access for {email_addr}")
                         st.rerun()
                 else:
-                    st.text("(Master Admin)")
+                    st.text("")
     else:
         st.warning("🔒 This tab is restricted to the master administrator.")
