@@ -7,8 +7,67 @@ from datetime import datetime
 from google import genai
 from google.genai import types
 
-# --- PAGE CONFIG ---
-st.set_page_config(page_title="Union Steward Portal", page_icon="✊", layout="wide")
+# --- PAGE CONFIG & HIGH-TECH STYLING ---
+st.set_page_config(page_title="UNION // COMMAND", page_icon="⚡", layout="wide")
+
+# Custom CSS for High-Tech / Cyber-Operations Aesthetic
+st.markdown("""
+    <style>
+    /* Global Dark Tech Theme */
+    .stApp {
+        background-color: #0b0f19;
+        color: #e2e8f0;
+    }
+    
+    /* Headers & Typography */
+    h1, h2, h3 {
+        font-family: 'Courier New', Courier, monospace;
+        letter-spacing: 1.5px;
+        color: #00f0ff !important;
+    }
+    
+    /* Terminal / Glassmorphism Cards */
+    .tech-card {
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid #1e293b;
+        border-left: 3px solid #00f0ff;
+        padding: 20px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 20px rgba(0, 240, 255, 0.05);
+    }
+    
+    /* Success / Active indicators */
+    .status-badge {
+        background-color: rgba(0, 255, 102, 0.1);
+        border: 1px solid #00ff66;
+        color: #00ff66;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 12px;
+    }
+    
+    /* Streamlit Metric & Tabs Adjustments */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+        background-color: #0f172a;
+        padding: 10px;
+        border-radius: 6px;
+        border: 1px solid #1e293b;
+    }
+    .stTabs [data-baseweb="tab"] {
+        color: #94a3b8;
+        font-family: monospace;
+        font-weight: bold;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #1e293b !important;
+        color: #00f0ff !important;
+        border-bottom: 2px solid #00f0ff !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 DB_NAME = "union_grievances.db"
 ADMIN_EMAIL = "cfetrow0201@gmail.com"
@@ -19,7 +78,6 @@ def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # Grievances table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS grievances (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,7 +95,6 @@ def init_db():
         )
     ''')
     
-    # Authorized Emails table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS authorized_emails (
             email TEXT PRIMARY KEY,
@@ -45,13 +102,11 @@ def init_db():
         )
     ''')
     
-    # Check if 'pin' column exists in older database tables, add it if missing
     cursor.execute("PRAGMA table_info(authorized_emails)")
     columns = [col[1] for col in cursor.fetchall()]
     if "pin" not in columns:
         cursor.execute("ALTER TABLE authorized_emails ADD COLUMN pin TEXT")
     
-    # Master Documents table (Contract & Handbook)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS master_documents (
             doc_type TEXT PRIMARY KEY,
@@ -61,7 +116,6 @@ def init_db():
         )
     ''')
     
-    # Seed default whitelist if empty
     cursor.execute("SELECT COUNT(*) FROM authorized_emails")
     count = cursor.fetchone()[0]
     if count == 0:
@@ -73,10 +127,8 @@ def init_db():
         for email, pin in default_data:
             cursor.execute("INSERT OR IGNORE INTO authorized_emails (email, pin) VALUES (?, ?)", (email, pin))
             
-    # Ensure master admin's PIN is explicitly updated to 4812
     cursor.execute("INSERT OR REPLACE INTO authorized_emails (email, pin) VALUES (?, ?)", (ADMIN_EMAIL.lower(), ADMIN_PIN))
     
-    # Give any other existing emails a random default pin if they don't have one
     cursor.execute("SELECT email FROM authorized_emails WHERE pin IS NULL OR pin = ''")
     empty_pin_rows = cursor.fetchall()
     for row in empty_pin_rows:
@@ -191,35 +243,38 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.user_email = ""
 
-# --- 4. LOGIN GATE (Email + PIN) ---
+# --- 4. LOGIN GATE (Terminal Style) ---
 if not st.session_state.logged_in:
-    st.title("✊ Union Steward Portal & Grievance Pipeline")
-    st.markdown("### Secure Access Gateway (PIN Protected)")
+    st.markdown("<h1 style='text-align: center; color: #00f0ff;'>⚡ UNION // COMMAND ⚡</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-family: monospace; color: #94a3b8;'>SECURE STEWARD PORTAL // AUTHENTICATION REQUIRED</p>", unsafe_allow_html=True)
     
-    with st.form("login_form"):
-        email_attempt = st.text_input("Authorized Email Address:")
-        pin_attempt = st.text_input("4-Digit Access PIN:", type="password", max_chars=4)
-        login_submitted = st.form_submit_button("Access Portal", type="primary")
-        
-        if login_submitted:
-            if verify_credentials(email_attempt, pin_attempt):
-                st.session_state.logged_in = True
-                st.session_state.user_email = email_attempt.strip().lower()
-                st.rerun()
-            else:
-                st.error("❌ Access Denied: Invalid email address or 4-digit PIN.")
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.form("login_form"):
+            email_attempt = st.text_input("IDENT (Authorized Email):")
+            pin_attempt = st.text_input("ACCESS PIN (4-Digit):", type="password", max_chars=4)
+            login_submitted = st.form_submit_button("INITIALIZE SESSION", type="primary", use_container_width=True)
+            
+            if login_submitted:
+                if verify_credentials(email_attempt, pin_attempt):
+                    st.session_state.logged_in = True
+                    st.session_state.user_email = email_attempt.strip().lower()
+                    st.rerun()
+                else:
+                    st.error("[ERROR] Access Denied: Invalid credentials.")
     st.stop()
 
 # --- 5. MAIN APP INTERFACE ---
-st.title("✊ Union Steward Portal & Grievance Pipeline")
-st.success(f"🔓 Logged in as: **{st.session_state.user_email}**")
+st.markdown("<h1 style='color: #00f0ff;'>⚡ UNION // COMMAND CENTER</h1>", unsafe_allow_html=True)
+st.markdown(f"<span class='status-badge'>🟢 ACTIVE SESSION // {st.session_state.user_email.upper()}</span>", unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
 
 api_key = get_gemini_key()
 
-tab1, tab2, tab3 = st.tabs(["📖 Contract & Handbook Expert", "📋 Grievance Pipeline", "⚙️ Admin & Access Control"])
+tab1, tab2, tab3 = st.tabs(["📖 AI INTELLIGENCE HUB", "📋 GRIEVANCE PIPELINE", "⚙️ SYSTEM ADMIN"])
 
 with tab1:
-    st.subheader("Contract & Employee Handbook - AI Search Hub")
+    st.subheader("Neural Contract & Policy Analyzer")
     
     contract_rec = get_document_from_db("contract")
     handbook_rec = get_document_from_db("handbook")
@@ -227,28 +282,28 @@ with tab1:
     col_status1, col_status2 = st.columns(2)
     with col_status1:
         if contract_rec:
-            st.success(f"📂 **Master Contract:** {contract_rec[1]}")
+            st.markdown(f"<div class='tech-card'>📂 <b>Master Contract:</b><br>{contract_rec[1]}</div>", unsafe_allow_html=True)
         else:
-            st.warning("⚠️ Master Contract not uploaded yet.")
+            st.markdown("<div class='tech-card' style='border-left-color: #ef4444;'>⚠️ <b>Master Contract:</b> Not Synced</div>", unsafe_allow_html=True)
             
     with col_status2:
         if handbook_rec:
-            st.success(f"📂 **Employee Handbook:** {handbook_rec[1]}")
+            st.markdown(f"<div class='tech-card'>📂 <b>Employee Handbook:</b><br>{handbook_rec[1]}</div>", unsafe_allow_html=True)
         else:
-            st.info("ℹ️ Employee Handbook not uploaded yet.")
+            st.markdown("<div class='tech-card' style='border-left-color: #94a3b8;'>ℹ️ <b>Employee Handbook:</b> Optional Offline</div>", unsafe_allow_html=True)
 
     search_scope = st.selectbox(
-        "Select Document to Search", 
+        "QUERY TARGET SCOPE", 
         ["Master Contract Only", "Employee Handbook Only", "Both Documents Together"]
     )
     
-    question = st.text_area("Question", placeholder="e.g., What is the policy regarding attendance points and call-offs?")
+    question = st.text_area("QUERY PARAMETERS", placeholder="e.g., What is the exact protocol for attendance point infractions?")
     
-    if st.button("Search Documents", type="primary"):
+    if st.button("EXECUTE NEURAL QUERY", type="primary"):
         if not api_key:
             st.warning("⚠️ Gemini API key is missing. Please configure it in Streamlit Secrets.")
         elif not question:
-            st.warning("⚠️ Please type a question.")
+            st.warning("⚠️ Please specify query parameters.")
         else:
             files_to_query = []
             if search_scope in ["Master Contract Only", "Both Documents Together"] and contract_rec:
@@ -257,7 +312,7 @@ with tab1:
                 files_to_query.append(("Employee Handbook", handbook_rec[0]))
                 
             if not files_to_query:
-                st.warning("⚠️ The selected document(s) have not been uploaded by the admin yet.")
+                st.warning("⚠️ Target document databases are empty.")
             else:
                 try:
                     client = genai.Client(api_key=api_key.strip())
@@ -273,19 +328,19 @@ with tab1:
                         model="gemini-2.5-flash",
                         contents=contents,
                         config=types.GenerateContentConfig(
-                            system_instruction="You are an expert labor union contract and company policy analyst assisting shop stewards. Answer authoritatively, citing specific articles or handbook sections.",
+                            system_instruction="You are an advanced tactical labor union contract and policy analyst assisting shop stewards. Provide precise, authoritative answers with exact article and section citations.",
                             temperature=0.2
                         )
                     )
-                    st.markdown("### Guidance & Citations:")
-                    st.write(response.text)
+                    st.markdown("### INTELLIGENCE OUTPUT:")
+                    st.markdown(f"<div class='tech-card'>{response.text}</div>", unsafe_allow_html=True)
                 except Exception as e:
-                    st.error(f"Error communicating with Gemini: {e}")
+                    st.error(f"Neural connection error: {e}")
 
 with tab2:
     col1, col2 = st.columns(2)
     with col1:
-        st.subheader("Log New Grievance")
+        st.subheader("Log New Grievance Record")
         with st.form("grievance_form"):
             g_name = st.text_input("Grievant Name & Department")
             g_date = st.text_input("Date of Occurrence")
@@ -295,12 +350,12 @@ with tab2:
             g_committeeman = st.text_input("Assigned Grievance Committeeman")
             g_facts = st.text_area("Statement of Facts / Notes")
             g_remedy = st.text_area("Remedy Demanded")
-            uploaded_image = st.file_uploader("Upload Photo of Notes / Evidence", type=["png", "jpg", "jpeg"])
+            uploaded_image = st.file_uploader("Upload Evidence / Documentation", type=["png", "jpg", "jpeg"])
             
-            submitted = st.form_submit_button("Save Grievance & Evidence", type="primary")
+            submitted = st.form_submit_button("COMMIT TO PIPELINE", type="primary")
             if submitted:
                 if not g_name or not g_articles:
-                    st.error("⚠️ Please provide at least the Grievant Name and Article(s) Violated.")
+                    st.error("⚠️ Grievant Name and Article(s) are required fields.")
                 else:
                     img_name = uploaded_image.name if uploaded_image else "No Image"
                     save_grievance(st.session_state.user_email, g_name, g_date, g_articles, g_step, g_steward, g_committeeman, g_facts, g_remedy, img_name)
@@ -308,16 +363,16 @@ with tab2:
                     st.rerun()
 
     with col2:
-        st.subheader("Active Grievance Pipeline")
+        st.subheader("Active Pipeline Telemetry")
         df = load_grievances()
         if not df.empty:
             st.dataframe(df[["id", "user_email", "grievant", "occ_date", "articles", "step", "steward", "committeeman", "timestamp"]], use_container_width=True)
         else:
-            st.info("No grievances logged yet.")
+            st.info("Pipeline telemetry empty.")
 
 with tab3:
     if st.session_state.user_email == ADMIN_EMAIL.lower():
-        st.subheader("⚙️ Admin Controls: Master Documents Management")
+        st.subheader("⚙️ SYSTEM ADMIN // REPOSITORY CONTROL")
         
         col_doc1, col_doc2 = st.columns(2)
         
@@ -325,51 +380,51 @@ with tab3:
             st.markdown("#### Master Contract (CBA)")
             c_rec = get_document_from_db("contract")
             if c_rec:
-                st.success(f"📌 Active in DB: **{c_rec[1]}**")
-                if st.button("🗑️ Remove Master Contract", key="del_contract"):
+                st.success(f"📌 Synced: **{c_rec[1]}**")
+                if st.button("🗑️ Purge Master Contract", key="del_contract"):
                     delete_document_from_db("contract")
-                    st.success("✅ Master Contract removed.")
+                    st.success("✅ Contract purged.")
                     st.rerun()
             else:
-                st.warning("No Master Contract uploaded.")
+                st.warning("Repository Empty.")
             
-            new_contract = st.file_uploader("Upload / Replace Master Contract (PDF)", type=["pdf"], key="upload_c")
+            new_contract = st.file_uploader("Upload / Overwrite Master Contract (PDF)", type=["pdf"], key="upload_c")
             if new_contract:
                 save_document_to_db("contract", new_contract)
-                st.success("✅ Master Contract updated & locked in!")
+                st.success("✅ Master Contract locked into database!")
                 st.rerun()
                 
         with col_doc2:
             st.markdown("#### Employee Handbook")
             h_rec = get_document_from_db("handbook")
             if h_rec:
-                st.success(f"📌 Active in DB: **{h_rec[1]}**")
-                if st.button("🗑️ Remove Handbook", key="del_handbook"):
+                st.success(f"📌 Synced: **{h_rec[1]}**")
+                if st.button("🗑️ Purge Handbook", key="del_handbook"):
                     delete_document_from_db("handbook")
-                    st.success("✅ Employee Handbook removed.")
+                    st.success("✅ Handbook purged.")
                     st.rerun()
             else:
-                st.info("No Employee Handbook uploaded.")
+                st.info("Repository Empty.")
             
-            new_handbook = st.file_uploader("Upload / Replace Handbook (PDF)", type=["pdf"], key="upload_h")
+            new_handbook = st.file_uploader("Upload / Overwrite Handbook (PDF)", type=["pdf"], key="upload_h")
             if new_handbook:
                 save_document_to_db("handbook", new_handbook)
-                st.success("✅ Employee Handbook updated & locked in!")
+                st.success("✅ Employee Handbook locked into database!")
                 st.rerun()
         
         st.markdown("---")
-        st.subheader("⚙️ Admin Controls: Manage Grievance Pipeline")
+        st.subheader("⚙️ Pipeline Record Modification")
         
         df_grievances = load_grievances()
         if not df_grievances.empty:
             grievant_options = {f"ID {row['id']}: {row['grievant']} ({row['articles']})": row['id'] for index, row in df_grievances.iterrows()}
-            selected_label = st.selectbox("Select Grievance to Edit or Delete", options=list(grievant_options.keys()))
+            selected_label = st.selectbox("Select Record to Modify", options=list(grievant_options.keys()))
             selected_id = grievant_options[selected_label]
             
             record = df_grievances[df_grievances['id'] == selected_id].iloc[0]
             
             with st.form("edit_grievance_form"):
-                st.markdown(f"**Editing Grievance Record ID: {selected_id}** (Submitted by: {record['user_email']})")
+                st.markdown(f"**Modifying Record ID: {selected_id}** (Origin: {record['user_email']})")
                 e_name = st.text_input("Grievant Name & Department", value=record['grievant'])
                 e_date = st.text_input("Date of Occurrence", value=record['occ_date'])
                 e_articles = st.text_input("Contract Article(s) Violated", value=record['articles'])
@@ -385,37 +440,37 @@ with tab3:
                 
                 col_update, col_delete = st.columns(2)
                 with col_update:
-                    update_submitted = st.form_submit_button("💾 Save Changes", type="primary")
+                    update_submitted = st.form_submit_button("💾 UPDATE RECORD", type="primary")
                 with col_delete:
-                    delete_submitted = st.form_submit_button("🗑️ Delete Grievance", type="secondary")
+                    delete_submitted = st.form_submit_button("🗑️ PURGE RECORD", type="secondary")
                 
                 if update_submitted:
                     update_grievance(selected_id, e_name, e_date, e_articles, e_step, e_steward, e_committeeman, e_facts, e_remedy)
-                    st.success(f"✅ Successfully updated Grievance ID {selected_id}!")
+                    st.success(f"✅ Record ID {selected_id} updated successfully!")
                     st.rerun()
                 
                 if delete_submitted:
                     delete_grievance(selected_id)
-                    st.success(f"🗑️ Successfully deleted Grievance ID {selected_id}!")
+                    st.success(f"🗑️ Record ID {selected_id} purged from database!")
                     st.rerun()
         else:
-            st.info("No grievances in the pipeline to edit or delete.")
+            st.info("No records in pipeline to modify.")
         
         st.markdown("---")
-        st.subheader("⚙️ Manage Authorized Access List & Assigned PINs")
-        new_email = st.text_input("New Steward/Office Email")
-        if st.button("Authorize Email & Assign PIN"):
+        st.subheader("⚙️ Access Control Matrix & Assigned PINs")
+        new_email = st.text_input("Authorize New IDENT (Email)")
+        if st.button("AUTHORIZE IDENT"):
             if not new_email or "@" not in new_email:
-                st.error("⚠️ Please enter a valid email address.")
+                st.error("⚠️ Invalid email syntax.")
             else:
                 if add_authorized_email(new_email):
-                    st.success(f"✅ Successfully added {new_email} with an auto-generated PIN!")
+                    st.success(f"✅ Authorized {new_email} with auto-generated PIN.")
                     st.rerun()
                 else:
-                    st.error(f"⚠️ {new_email} is already on the list.")
+                    st.error(f"⚠️ {new_email} is already in the access matrix.")
         
         st.markdown("---")
-        st.markdown("#### Currently Authorized & Assigned PINs:")
+        st.markdown("#### ACTIVE ACCESS MATRIX:")
         
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
@@ -425,24 +480,24 @@ with tab3:
         
         for row in authorized_rows:
             email_addr = row[0]
-            pin_code = row[1] if row[1] else "0000"
+            pin_code = row[1] if row[1] else "4812"
             col_email, col_btn = st.columns([3, 1])
             with col_email:
                 display_text = f"• {email_addr} &nbsp;&nbsp;|&nbsp;&nbsp; 🔑 PIN: **{pin_code}**"
                 if email_addr == ADMIN_EMAIL.lower():
-                    display_text += " (Master Admin)"
-                st.markdown(f"<p style='color: #FFD700; font-weight: bold;'>{display_text}</p>", unsafe_allow_html=True)
+                    display_text += " [ROOT ADMIN]"
+                st.markdown(f"<p style='color: #00ff66; font-weight: bold; font-family: monospace;'>{display_text}</p>", unsafe_allow_html=True)
             with col_btn:
                 if email_addr != ADMIN_EMAIL.lower():
-                    if st.button("Revoke", key=f"revoke_{email_addr}"):
+                    if st.button("REVOKE", key=f"revoke_{email_addr}"):
                         conn = sqlite3.connect(DB_NAME)
                         cursor = conn.cursor()
                         cursor.execute("DELETE FROM authorized_emails WHERE email = ?", (email_addr,))
                         conn.commit()
                         conn.close()
-                        st.success(f"🚫 Revoked and deleted access for {email_addr}")
+                        st.success(f"🚫 Revoked access for {email_addr}")
                         st.rerun()
                 else:
                     st.text("")
     else:
-        st.warning("🔒 This tab is restricted to the master administrator.")
+        st.warning("🔒 RESTRICTED ZONE: Root Admin Privileges Required.")
