@@ -18,7 +18,7 @@ def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # Grievances table
+    # Grievances table (includes committeeman column)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS grievances (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,6 +28,7 @@ def init_db():
             articles TEXT,
             step TEXT,
             steward TEXT,
+            committeeman TEXT,
             facts TEXT,
             remedy TEXT,
             evidence_image TEXT,
@@ -94,24 +95,24 @@ def get_master_contract_from_db():
     conn.close()
     return row
 
-def save_grievance(email, grievant, date, articles, step, steward, facts, remedy, image_name):
+def save_grievance(email, grievant, date, articles, step, steward, committeeman, facts, remedy, image_name):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO grievances (user_email, grievant, occ_date, articles, step, steward, facts, remedy, evidence_image)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (email.strip().lower(), grievant, date, articles, step, steward, facts, remedy, image_name))
+        INSERT INTO grievances (user_email, grievant, occ_date, articles, step, steward, committeeman, facts, remedy, evidence_image)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (email.strip().lower(), grievant, date, articles, step, steward, committeeman, facts, remedy, image_name))
     conn.commit()
     conn.close()
 
-def update_grievance(g_id, grievant, date, articles, step, steward, facts, remedy):
+def update_grievance(g_id, grievant, date, articles, step, steward, committeeman, facts, remedy):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute('''
         UPDATE grievances 
-        SET grievant = ?, occ_date = ?, articles = ?, step = ?, steward = ?, facts = ?, remedy = ?
+        SET grievant = ?, occ_date = ?, articles = ?, step = ?, steward = ?, committeeman = ?, facts = ?, remedy = ?
         WHERE id = ?
-    ''', (grievant, date, articles, step, steward, facts, remedy, g_id))
+    ''', (grievant, date, articles, step, steward, committeeman, facts, remedy, g_id))
     conn.commit()
     conn.close()
 
@@ -222,6 +223,7 @@ with tab2:
             g_articles = st.text_input("Contract Article(s) Violated")
             g_step = st.selectbox("Current Step", ["Step 1 (Supervisor)", "Step 2 (HR / Dept Head)", "Step 3 (Plant Mgr)", "Arbitration"])
             g_steward = st.text_input("Assigned Steward")
+            g_committeeman = st.text_input("Assigned Grievance Committeeman")
             g_facts = st.text_area("Statement of Facts / Notes")
             g_remedy = st.text_area("Remedy Demanded")
             uploaded_image = st.file_uploader("Upload Photo of Notes / Evidence", type=["png", "jpg", "jpeg"])
@@ -232,7 +234,7 @@ with tab2:
                     st.error("⚠️ Please provide at least the Grievant Name and Article(s) Violated.")
                 else:
                     img_name = uploaded_image.name if uploaded_image else "No Image"
-                    save_grievance(st.session_state.user_email, g_name, g_date, g_articles, g_step, g_steward, g_facts, g_remedy, img_name)
+                    save_grievance(st.session_state.user_email, g_name, g_date, g_articles, g_step, g_steward, g_committeeman, g_facts, g_remedy, img_name)
                     st.success(f"✅ Grievance logged successfully!")
                     st.rerun()
 
@@ -240,7 +242,7 @@ with tab2:
         st.subheader("Active Grievance Pipeline")
         df = load_grievances()
         if not df.empty:
-            st.dataframe(df[["id", "user_email", "grievant", "occ_date", "articles", "step", "steward", "timestamp"]], use_container_width=True)
+            st.dataframe(df[["id", "user_email", "grievant", "occ_date", "articles", "step", "steward", "committeeman", "timestamp"]], use_container_width=True)
         else:
             st.info("No grievances logged yet.")
 
@@ -250,12 +252,10 @@ with tab3:
         
         df_grievances = load_grievances()
         if not df_grievances.empty:
-            # Select grievance to edit/delete
             grievant_options = {f"ID {row['id']}: {row['grievant']} ({row['articles']})": row['id'] for index, row in df_grievances.iterrows()}
             selected_label = st.selectbox("Select Grievance to Edit or Delete", options=list(grievant_options.keys()))
             selected_id = grievant_options[selected_label]
             
-            # Fetch current values for this grievance
             record = df_grievances[df_grievances['id'] == selected_id].iloc[0]
             
             with st.form("edit_grievance_form"):
@@ -269,6 +269,7 @@ with tab3:
                 e_step = st.selectbox("Current Step", steps_list, index=default_step_idx)
                 
                 e_steward = st.text_input("Assigned Steward", value=record['steward'])
+                e_committeeman = st.text_input("Assigned Grievance Committeeman", value=record['committeeman'] if record['committeeman'] else "")
                 e_facts = st.text_area("Statement of Facts / Notes", value=record['facts'])
                 e_remedy = st.text_area("Remedy Demanded", value=record['remedy'])
                 
@@ -279,7 +280,7 @@ with tab3:
                     delete_submitted = st.form_submit_button("🗑️ Delete Grievance", type="secondary")
                 
                 if update_submitted:
-                    update_grievance(selected_id, e_name, e_date, e_articles, e_step, e_steward, e_facts, e_remedy)
+                    update_grievance(selected_id, e_name, e_date, e_articles, e_step, e_steward, e_committeeman, e_facts, e_remedy)
                     st.success(f"✅ Successfully updated Grievance ID {selected_id}!")
                     st.rerun()
                 
