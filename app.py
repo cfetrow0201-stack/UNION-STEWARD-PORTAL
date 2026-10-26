@@ -56,6 +56,22 @@ st.markdown("""
         box-shadow: 0 0 12px rgba(255, 215, 0, 0.25);
     }
     
+    /* Sleek Industrial Banner Box */
+    .industrial-banner {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        border: 1px solid rgba(255, 215, 0, 0.4);
+        border-top: 3px solid #FFD700;
+        padding: 15px 25px;
+        border-radius: 8px;
+        font-family: 'Courier New', Courier, monospace;
+        color: #FFD700;
+        font-weight: bold;
+        letter-spacing: 2px;
+        text-align: center;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    
     /* Streamlit Tabs Adjustments */
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
@@ -258,8 +274,7 @@ if not st.session_state.logged_in:
     st.markdown("<h1 style='text-align: center; color: #FFD700;'>🛡️ UNITED STEELWORKERS // COMMAND 🛡️</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; font-family: monospace; color: #94a3b8;'>SECURE STEWARD PORTAL // AUTHENTICATION REQUIRED</p>", unsafe_allow_html=True)
     
-    # Replaced with stacked steel bars / structural steel image
-    st.image("https://images.unsplash.com/photo-1558486011-83582960d69d?auto=format&fit=crop&w=1200&q=80", use_container_width=True)
+    st.markdown("<div class='industrial-banner'>⚡ STRUCTURAL STEEL & METALLURGY DIVISION // SECURE GATEWAY ⚡</div>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -282,8 +297,7 @@ st.markdown("<h1 style='color: #FFD700;'>🛡️ USW // STEWARD COMMAND CENTER</
 st.markdown(f"<span class='status-badge'>🟢 ACTIVE SESSION // {st.session_state.user_email.upper()}</span>", unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Replaced with stacked steel bars / structural steel image
-st.image("https://images.unsplash.com/photo-1558486011-83582960d69d?auto=format&fit=crop&w=1400&q=80", use_container_width=True)
+st.markdown("<div class='industrial-banner'>⚡ STRUCTURAL STEEL & METALLURGY DIVISION // LIVE PIPELINE TELEMETRY ⚡</div>", unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
 api_key = get_gemini_key()
