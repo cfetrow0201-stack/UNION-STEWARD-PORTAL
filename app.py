@@ -12,6 +12,7 @@ st.set_page_config(page_title="Union Steward Portal", page_icon="✊", layout="w
 
 DB_NAME = "union_grievances.db"
 ADMIN_EMAIL = "cfetrow0201@gmail.com"
+ADMIN_PIN = "4812"
 
 # --- 1. SETUP DATABASE & MIGRATIONS ---
 def init_db():
@@ -65,15 +66,15 @@ def init_db():
     count = cursor.fetchone()[0]
     if count == 0:
         default_data = [
-            (ADMIN_EMAIL, "0000"),
+            (ADMIN_EMAIL, ADMIN_PIN),
             ("admin@union.org", "1234"),
             ("steward1@union.org", "5678")
         ]
         for email, pin in default_data:
             cursor.execute("INSERT OR IGNORE INTO authorized_emails (email, pin) VALUES (?, ?)", (email, pin))
             
-    # Make sure admin always has a pin assigned even in existing databases
-    cursor.execute("UPDATE authorized_emails SET pin = '0000' WHERE email = ? AND (pin IS NULL OR pin = '')", (ADMIN_EMAIL.lower(),))
+    # Ensure master admin's PIN is explicitly updated to 4812
+    cursor.execute("INSERT OR REPLACE INTO authorized_emails (email, pin) VALUES (?, ?)", (ADMIN_EMAIL.lower(), ADMIN_PIN))
     
     # Give any other existing emails a random default pin if they don't have one
     cursor.execute("SELECT email FROM authorized_emails WHERE pin IS NULL OR pin = ''")
