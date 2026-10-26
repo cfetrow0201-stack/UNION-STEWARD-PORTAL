@@ -37,9 +37,15 @@ def init_db():
             email TEXT PRIMARY KEY
         )
     ''')
-    default_emails = [ADMIN_EMAIL, "admin@union.org", "steward1@union.org"]
-    for email in default_emails:
-        cursor.execute("INSERT OR IGNORE INTO authorized_emails (email) VALUES (?)", (email,))
+    
+    # Check if the table is completely empty before adding defaults
+    cursor.execute("SELECT COUNT(*) FROM authorized_emails")
+    count = cursor.fetchone()[0]
+    if count == 0:
+        default_emails = [ADMIN_EMAIL, "admin@union.org", "steward1@union.org"]
+        for email in default_emails:
+            cursor.execute("INSERT OR IGNORE INTO authorized_emails (email) VALUES (?)", (email,))
+            
     conn.commit()
     conn.close()
 
@@ -219,7 +225,6 @@ with tab3:
             email_addr = row[0]
             col_email, col_btn = st.columns([3, 1])
             with col_email:
-                # Yellow text for active access
                 st.markdown(f"<p style='color: #FFD700; font-weight: bold;'>• {email_addr}</p>", unsafe_allow_html=True)
             with col_btn:
                 if email_addr != ADMIN_EMAIL.lower():
