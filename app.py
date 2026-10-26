@@ -1,7 +1,7 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-import os
+import io
 from datetime import datetime
 from google import genai
 from google.genai import types
@@ -11,12 +11,13 @@ st.set_page_config(page_title="Union Steward Portal", page_icon="✊", layout="w
 
 DB_NAME = "union_grievances.db"
 ADMIN_EMAIL = "cfetrow0201@gmail.com"
-MASTER_CONTRACT_PATH = "master_contract.pdf"
 
-# --- 1. SETUP DATABASE ---
+# --- 1. SETUP DATABASE & PERMANENT CONTRACT STORAGE ---
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
+    
+    # Grievances table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS grievances (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,13 +33,25 @@ def init_db():
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    
+    # Authorized Emails table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS authorized_emails (
             email TEXT PRIMARY KEY
         )
     ''')
     
-    # Check if the table is completely empty before adding defaults
+    # Master Contract table (stores PDF bytes securely in SQLite so it never resets)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS master_contract (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            pdf_data BLOB,
+            file_name TEXT,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Seed default whitelist only if empty
     cursor.execute("SELECT COUNT(*) FROM authorized_emails")
     count = cursor.fetchone()[0]
     if count == 0:
@@ -60,6 +73,25 @@ def is_email_authorized(email):
     result = cursor.fetchone()
     conn.close()
     return result is not None
+
+def save_master_contract_to_db(uploaded_file):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    pdf_bytes = uploaded_file.getvalue()
+    cursor.execute('''
+        INSERT OR REPLACE INTO master_contract (id, pdf_data, file_name, updated_at)
+        VALUES (1, ?, ?, CURRENT_TIMESTAMP)
+    ''', (pdf_bytes, uploaded_file.name))
+    conn.commit()
+    conn.close()
+
+def get_master_contract_from_db():
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT pdf_data, file_name FROM master_contract WHERE id = 1")
+    row = cursor.fetchone()
+    conn.close()
+    return row # Returns (pdf_bytes, file_name) or None
 
 def save_grievance(email, grievant, date, articles, step, steward, facts, remedy, image_name):
     conn = sqlite3.connect(DB_NAME)
@@ -117,16 +149,20 @@ tab1, tab2, tab3 = st.tabs(["📖 Contract Expert (AI Search)", "📋 Grievance 
 with tab1:
     st.subheader("Contract Expert - AI Search (Master Hub)")
     
+    # Only admin can update the master contract
     if st.session_state.user_email == ADMIN_EMAIL.lower():
         uploaded_pdf = st.file_uploader("Upload / Replace Master Contract CBA (PDF)", type=["pdf"])
         if uploaded_pdf is not None:
-            with open(MASTER_CONTRACT_PATH, "wb") as f:
-                f.write(uploaded_pdf.getbuffer())
-            st.success("✅ Master contract updated successfully for all users!")
+            save_master_contract_to_db(uploaded_pdf)
+            st.success("✅ Master contract uploaded and permanently saved to the database for all users!")
+            st.rerun()
     
-    if os.path.exists(MASTER_CONTRACT_PATH):
-        st.info("📂 Active Master Contract loaded and shared globally for all stewards.")
+    contract_record = get_master_contract_from_db()
+    if contract_record:
+        pdf_bytes, file_name = contract_record
+        st.info(f"📂 Active Master Contract loaded: **{file_name}** (Stored securely in database)")
     else:
+        pdf_bytes = None
         st.warning("⚠️ No master contract found yet. Admin needs to upload one.")
 
     question = st.text_area("Contract Question", placeholder="e.g., What is the deadline to file a Step 1 grievance?")
@@ -136,14 +172,12 @@ with tab1:
             st.warning("⚠️ Gemini API key is missing. Please configure it in Streamlit Secrets.")
         elif not question:
             st.warning("⚠️ Please type a question.")
-        elif not os.path.exists(MASTER_CONTRACT_PATH):
+        elif not pdf_bytes:
             st.warning("⚠️ No contract PDF available to search.")
         else:
             try:
                 client = genai.Client(api_key=api_key.strip())
                 contents = []
-                with open(MASTER_CONTRACT_PATH, "rb") as f:
-                    pdf_bytes = f.read()
                 contents.append(types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"))
                 contents.append(f"Question: {question}")
                 
