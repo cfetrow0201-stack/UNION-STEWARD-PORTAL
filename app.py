@@ -11,14 +11,13 @@ st.set_page_config(page_title="Union Steward Portal", page_icon="✊", layout="w
 
 DB_NAME = "union_grievances.db"
 ADMIN_EMAIL = "cfetrow0201@gmail.com"
-MASTER_CONTRACT_PATH = "master_contract.pdf"
 
 # --- 1. SETUP DATABASE & PERMANENT STORAGE ---
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # Grievances table (includes committeeman column)
+    # Grievances table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS grievances (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,10 +42,10 @@ def init_db():
         )
     ''')
     
-    # Master Contract table (stores PDF bytes securely in SQLite)
+    # Master Documents table (stores PDF bytes securely in SQLite for Contract & Handbook)
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS master_contract (
-            id INTEGER PRIMARY KEY CHECK (id = 1),
+        CREATE TABLE IF NOT EXISTS master_documents (
+            doc_type TEXT PRIMARY KEY,
             pdf_data BLOB,
             file_name TEXT,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -76,24 +75,31 @@ def is_email_authorized(email):
     conn.close()
     return result is not None
 
-def save_master_contract_to_db(uploaded_file):
+def save_document_to_db(doc_type, uploaded_file):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     pdf_bytes = uploaded_file.getvalue()
     cursor.execute('''
-        INSERT OR REPLACE INTO master_contract (id, pdf_data, file_name, updated_at)
-        VALUES (1, ?, ?, CURRENT_TIMESTAMP)
-    ''', (pdf_bytes, uploaded_file.name))
+        INSERT OR REPLACE INTO master_documents (doc_type, pdf_data, file_name, updated_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+    ''', (doc_type, pdf_bytes, uploaded_file.name))
     conn.commit()
     conn.close()
 
-def get_master_contract_from_db():
+def delete_document_from_db(doc_type):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute("SELECT pdf_data, file_name FROM master_contract WHERE id = 1")
+    cursor.execute("DELETE FROM master_documents WHERE doc_type = ?", (doc_type,))
+    conn.commit()
+    conn.close()
+
+def get_document_from_db(doc_type):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT pdf_data, file_name FROM master_documents WHERE doc_type = ?", (doc_type,))
     row = cursor.fetchone()
     conn.close()
-    return row
+    return row # Returns (pdf_bytes, file_name) or None
 
 def save_grievance(email, grievant, date, articles, step, steward, committeeman, facts, remedy, image_name):
     conn = sqlite3.connect(DB_NAME)
@@ -164,54 +170,74 @@ st.success(f"🔓 Logged in as: **{st.session_state.user_email}**")
 
 api_key = get_gemini_key()
 
-tab1, tab2, tab3 = st.tabs(["📖 Contract Expert (AI Search)", "📋 Grievance Pipeline", "⚙️ Admin & Access Control"])
+tab1, tab2, tab3 = st.tabs(["📖 Contract & Handbook Expert", "📋 Grievance Pipeline", "⚙️ Admin & Access Control"])
 
 with tab1:
-    st.subheader("Contract Expert - AI Search (Master Hub)")
+    st.subheader("Contract & Employee Handbook - AI Search Hub")
     
-    if st.session_state.user_email == ADMIN_EMAIL.lower():
-        uploaded_pdf = st.file_uploader("Upload / Replace Master Contract CBA (PDF)", type=["pdf"])
-        if uploaded_pdf is not None:
-            save_master_contract_to_db(uploaded_pdf)
-            st.success("✅ Master contract uploaded and permanently saved to the database for all users!")
-            st.rerun()
+    # Check loaded documents
+    contract_rec = get_document_from_db("contract")
+    handbook_rec = get_document_from_db("handbook")
     
-    contract_record = get_master_contract_from_db()
-    if contract_record:
-        pdf_bytes, file_name = contract_record
-        st.info(f"📂 Active Master Contract loaded: **{file_name}** (Stored securely in database)")
-    else:
-        pdf_bytes = None
-        st.warning("⚠️ No master contract found yet. Admin needs to upload one.")
+    col_status1, col_status2 = st.columns(2)
+    with col_status1:
+        if contract_rec:
+            st.success(f"📂 **Master Contract:** {contract_rec[1]}")
+        else:
+            st.warning("⚠️ Master Contract not uploaded yet.")
+            
+    with col_status2:
+        if handbook_rec:
+            st.success(f"📂 **Employee Handbook:** {handbook_rec[1]}")
+        else:
+            st.info("ℹ️ Employee Handbook not uploaded yet (Optional).")
 
-    question = st.text_area("Contract Question", placeholder="e.g., What is the deadline to file a Step 1 grievance?")
+    # Document selection for search
+    search_scope = st.selectbox(
+        "Select Document to Search", 
+        ["Master Contract Only", "Employee Handbook Only", "Both Documents Together"]
+    )
     
-    if st.button("Search Contract", type="primary"):
+    question = st.text_area("Question", placeholder="e.g., What is the policy regarding attendance points and call-offs?")
+    
+    if st.button("Search Documents", type="primary"):
         if not api_key:
             st.warning("⚠️ Gemini API key is missing. Please configure it in Streamlit Secrets.")
         elif not question:
             st.warning("⚠️ Please type a question.")
-        elif not pdf_bytes:
-            st.warning("⚠️ No contract PDF available to search.")
         else:
-            try:
-                client = genai.Client(api_key=api_key.strip())
-                contents = []
-                contents.append(types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"))
-                contents.append(f"Question: {question}")
+            # Determine which files to feed to Gemini
+            files_to_query = []
+            if search_scope in ["Master Contract Only", "Both Documents Together"] and contract_rec:
+                files_to_query.append(("Master Contract", contract_rec[0]))
+            if search_scope in ["Employee Handbook Only", "Both Documents Together"] and handbook_rec:
+                files_to_query.append(("Employee Handbook", handbook_rec[0]))
                 
-                response = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=contents,
-                    config=types.GenerateContentConfig(
-                        system_instruction="You are an expert labor union contract analyst assisting shop stewards. Answer authoritatively with article citations.",
-                        temperature=0.2
+            if not files_to_query:
+                st.warning("⚠️ The selected document(s) have not been uploaded by the admin yet.")
+            else:
+                try:
+                    client = genai.Client(api_key=api_key.strip())
+                    contents = []
+                    
+                    for doc_label, pdf_bytes in files_to_query:
+                        contents.append(types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"))
+                        contents.append(f"[{doc_label} Attached]")
+                        
+                    contents.append(f"Question: {question}")
+                    
+                    response = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=contents,
+                        config=types.GenerateContentConfig(
+                            system_instruction="You are an expert labor union contract and company policy analyst assisting shop stewards. Answer authoritatively, citing specific articles or handbook sections.",
+                            temperature=0.2
+                        )
                     )
-                )
-                st.markdown("### Guidance & Citations:")
-                st.write(response.text)
-            except Exception as e:
-                st.error(f"Error communicating with Gemini: {e}")
+                    st.markdown("### Guidance & Citations:")
+                    st.write(response.text)
+                except Exception as e:
+                    st.error(f"Error communicating with Gemini: {e}")
 
 with tab2:
     col1, col2 = st.columns(2)
@@ -248,6 +274,43 @@ with tab2:
 
 with tab3:
     if st.session_state.user_email == ADMIN_EMAIL.lower():
+        st.subheader("⚙️ Admin Controls: Master Documents Management")
+        
+        col_doc1, col_doc2 = st.columns(2)
+        
+        with col_doc1:
+            st.markdown("#### Master Contract (CBA)")
+            c_rec = get_document_from_db("contract")
+            if c_rec:
+                st.info(f"Active: {c_rec[1]}")
+                if st.button("🗑️ Remove Master Contract", key="del_contract"):
+                    delete_document_from_db("contract")
+                    st.success("✅ Master Contract removed.")
+                    st.rerun()
+            
+            new_contract = st.file_uploader("Upload / Replace Master Contract (PDF)", type=["pdf"], key="upload_c")
+            if new_contract:
+                save_document_to_db("contract", new_contract)
+                st.success("✅ Master Contract updated!")
+                st.rerun()
+                
+        with col_doc2:
+            st.markdown("#### Employee Handbook")
+            h_rec = get_document_from_db("handbook")
+            if h_rec:
+                st.info(f"Active: {h_rec[1]}")
+                if st.button("🗑️ Remove Handbook", key="del_handbook"):
+                    delete_document_from_db("handbook")
+                    st.success("✅ Employee Handbook removed.")
+                    st.rerun()
+            
+            new_handbook = st.file_uploader("Upload / Replace Handbook (PDF)", type=["pdf"], key="upload_h")
+            if new_handbook:
+                save_document_to_db("handbook", new_handbook)
+                st.success("✅ Employee Handbook updated!")
+                st.rerun()
+        
+        st.markdown("---")
         st.subheader("⚙️ Admin Controls: Manage Grievance Pipeline")
         
         df_grievances = load_grievances()
