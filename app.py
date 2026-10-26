@@ -10,7 +10,7 @@ from google.genai import types
 # --- PAGE CONFIG & ENHANCED CYBER STYLING ---
 st.set_page_config(page_title="USW // COMMAND CENTER", page_icon="🛡️", layout="wide")
 
-# Custom CSS with Scrolling Marquee Ticker & Glowing Cyber Grid
+# Custom CSS with Continuous Seamless Ticker & Glowing Cyber Grid
 st.markdown("""
     <style>
     /* Global Deep Cyber Theme with Glowing Grid Overlay */
@@ -32,7 +32,7 @@ st.markdown("""
         text-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
     }
     
-    /* Scrolling High-Tech Ticker Bar */
+    /* Continuous High-Tech Ticker Bar */
     .ticker-wrap {
         width: 100%;
         overflow: hidden;
@@ -48,7 +48,7 @@ st.markdown("""
     .ticker {
         display: inline-block;
         white-space: nowrap;
-        animation: marquee 25s linear infinite;
+        animation: marquee 30s linear infinite;
         font-family: 'Courier New', Courier, monospace;
         color: #FFD700;
         font-weight: bold;
@@ -56,8 +56,8 @@ st.markdown("""
         letter-spacing: 2px;
     }
     @keyframes marquee {
-        0%   { transform: translate3d(100%, 0, 0); }
-        100% { transform: translate3d(-100%, 0, 0); }
+        0%   { transform: translate3d(0, 0, 0); }
+        100% { transform: translate3d(-50%, 0, 0); }
     }
     
     /* Industrial Glass Cards with Glowing Border */
@@ -111,13 +111,13 @@ DB_NAME = "union_grievances.db"
 ADMIN_EMAIL = "cfetrow0201@gmail.com"
 ADMIN_PIN = "4812"
 
-# --- 3. SESSION STATE INITIALIZATION (Must be early) ---
+# --- 3. SESSION STATE INITIALIZATION ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "user_email" not in st.session_state:
     st.session_state.user_email = ""
 
-# --- 1. SETUP DATABASE & MIGRATIONS (with timeout for multi-device safety) ---
+# --- 1. SETUP DATABASE & MIGRATIONS ---
 def init_db():
     conn = sqlite3.connect(DB_NAME, timeout=10.0)
     cursor = conn.cursor()
@@ -285,9 +285,10 @@ def get_gemini_key():
         pass
     return st.sidebar.text_input("🔑 Gemini API Key (Admin Override)", type="password", value="")
 
-# Get live current time and formatted telemetry string
+# Get live current time and formatted telemetry string (doubled for a continuous loop)
 current_time_str = datetime.now().strftime("%B %d, %Y — %I:%M:%S %p")
-ticker_text = f"⚡ LIVE TELEMETRY: NORTH CANTON, OH &nbsp;&nbsp;|&nbsp;&nbsp; LOCAL TIME: {current_time_str} &nbsp;&nbsp;|&nbsp;&nbsp; AMBIENT TEMP: 44°F (CLEAR) &nbsp;&nbsp;|&nbsp;&nbsp; SYSTEM STATUS: SECURE & OPERATIONAL ⚡"
+single_ticker = f"⚡ LIVE TELEMETRY: NORTH CANTON, OH &nbsp;&nbsp;|&nbsp;&nbsp; LOCAL TIME: {current_time_str} &nbsp;&nbsp;|&nbsp;&nbsp; AMBIENT TEMP: 44°F (CLEAR) &nbsp;&nbsp;|&nbsp;&nbsp; SYSTEM STATUS: SECURE & OPERATIONAL ⚡&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
+ticker_text = single_ticker + single_ticker
 
 # --- 4. LOGIN GATE (USW Terminal Style) ---
 if not st.session_state.logged_in:
@@ -435,7 +436,7 @@ with tab2:
 
 with tab_safety:
     st.subheader("👥 Union Safety Rep & Union Safety Committee")
-    st.markdown("<p style='color: #94a3b8; font-family: monospace;'>Official Plant Safety Committee Directory & Plant FAP Contacts (Rev. 8/31/2026)</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #94a3b8; font-family: monospace;'>Official Plant Safety Committee Directory & Plant FAP Contacts (Rev. 8/31/2026) — <i>Tap numbers to call or hold to copy.</i></p>", unsafe_allow_html=True)
     
     safety_data = [
         # Harrison Steel Plant "HSP" (1835 Dueber Avenue S.W., Canton OH 44706)
@@ -481,16 +482,97 @@ with tab_safety:
         {"Plant / Location": "FAP Leads - Plant", "Name / Area": "Greg Smith - HSP, Machine Shop", "Clock #": "181-025", "Turn": "Days", "Crew": "", "Phone": "(330) 437-8015", "Email": ""}
     ]
     
-    df_safety = pd.DataFrame(safety_data)
-    
     search_term = st.text_input("🔍 Search Directory by Name, Plant, or Area:", "")
-    if search_term:
-        mask = df_safety.apply(lambda row: row.astype(str).str.contains(search_term, case=False).any(), axis=1)
-        df_filtered = df_safety[mask]
-    else:
-        df_filtered = df_safety
+    
+    html_table = """
+    <style>
+        .safety-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+            background: rgba(11, 17, 32, 0.95);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .safety-table th {
+            background-color: #1e293b;
+            color: #FFD700;
+            padding: 12px;
+            text-align: left;
+            border-bottom: 2px solid rgba(255, 215, 0, 0.4);
+        }
+        .safety-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(255, 215, 0, 0.1);
+            color: #f8fafc;
+        }
+        .safety-table tr:hover {
+            background-color: rgba(255, 215, 0, 0.05);
+        }
+        .safety-link {
+            color: #38bdf8 !important;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .safety-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+    <table class="safety-table">
+        <thead>
+            <tr>
+                <th>Plant / Location</th>
+                <th>Name / Area</th>
+                <th>Clock #</th>
+                <th>Turn</th>
+                <th>Crew</th>
+                <th>Phone</th>
+                <th>Email / Contact Info</th>
+            </tr>
+        </thead>
+        <tbody>
+    """
+    
+    filtered_count = 0
+    for row in safety_data:
+        if search_term:
+            combined_text = f"{row['Plant / Location']} {row['Name / Area']} {row['Clock #']} {row['Turn']} {row['Phone']} {row['Email']}"
+            if search_term.lower() not in combined_text.lower():
+                continue
         
-    st.dataframe(df_filtered, use_container_width=True, hide_index=True)
+        filtered_count += 1
+        phone_clean = row['Phone'].replace('(', '').replace(')', '').replace(' ', '').replace('-', '')
+        phone_html = f"<a class='safety-link' href='tel:{phone_clean}'>{row['Phone']}</a>" if row['Phone'] else ""
+        
+        email_text = row['Email']
+        if "@" in email_text:
+            email_parts = email_text.split(" ")
+            email_addr = [p for p in email_parts if "@" in p][0]
+            rest_text = email_text.replace(email_addr, "")
+            email_html = f"<a class='safety-link' href='mailto:{email_addr}'>{email_addr}</a> {rest_text}"
+        else:
+            email_html = email_text
+
+        html_table += f"""
+            <tr>
+                <td>{row['Plant / Location']}</td>
+                <td><b>{row['Name / Area']}</b></td>
+                <td>{row['Clock #']}</td>
+                <td>{row['Turn']}</td>
+                <td>{row['Crew']}</td>
+                <td>{phone_html}</td>
+                <td>{email_html}</td>
+            </tr>
+        """
+        
+    html_table += "</tbody></table>"
+    
+    if filtered_count > 0:
+        st.markdown(html_table, unsafe_allow_html=True)
+    else:
+        st.info("No matching safety committee records found.")
 
 with tab3:
     if st.session_state.user_email == ADMIN_EMAIL.lower():
@@ -594,7 +676,7 @@ with tab3:
         st.markdown("---")
         st.markdown("#### ACTIVE ACCESS MATRIX:")
         
-        conn = sqlite3.connect(DB_NAME)
+        conn = sqlite3.connect(DB_NAME, timeout=10.0)
         cursor = conn.cursor()
         cursor.execute("SELECT email, pin FROM authorized_emails")
         authorized_rows = cursor.fetchall()
@@ -612,7 +694,7 @@ with tab3:
             with col_btn:
                 if email_addr != ADMIN_EMAIL.lower():
                     if st.button("REVOKE", key=f"revoke_{email_addr}"):
-                        conn = sqlite3.connect(DB_NAME)
+                        conn = sqlite3.connect(DB_NAME, timeout=10.0)
                         cursor = conn.cursor()
                         cursor.execute("DELETE FROM authorized_emails WHERE email = ?", (email_addr,))
                         conn.commit()
