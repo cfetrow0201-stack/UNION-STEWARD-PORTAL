@@ -13,7 +13,7 @@ st.set_page_config(page_title="Union Steward Portal", page_icon="✊", layout="w
 DB_NAME = "union_grievances.db"
 ADMIN_EMAIL = "cfetrow0201@gmail.com"
 
-# --- 1. SETUP DATABASE & PERMANENT STORAGE ---
+# --- 1. SETUP DATABASE & MIGRATIONS ---
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -36,7 +36,7 @@ def init_db():
         )
     ''')
     
-    # Authorized Emails table (now includes a PIN column)
+    # Authorized Emails table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS authorized_emails (
             email TEXT PRIMARY KEY,
@@ -44,7 +44,13 @@ def init_db():
         )
     ''')
     
-    # Master Documents table (stores PDF bytes securely in SQLite for Contract & Handbook)
+    # Check if 'pin' column exists in older database tables, add it if missing
+    cursor.execute("PRAGMA table_info(authorized_emails)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if "pin" not in columns:
+        cursor.execute("ALTER TABLE authorized_emails ADD COLUMN pin TEXT")
+    
+    # Master Documents table (Contract & Handbook)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS master_documents (
             doc_type TEXT PRIMARY KEY,
@@ -54,7 +60,7 @@ def init_db():
         )
     ''')
     
-    # Seed default whitelist with default pins only if empty
+    # Seed default whitelist if empty
     cursor.execute("SELECT COUNT(*) FROM authorized_emails")
     count = cursor.fetchone()[0]
     if count == 0:
@@ -66,6 +72,16 @@ def init_db():
         for email, pin in default_data:
             cursor.execute("INSERT OR IGNORE INTO authorized_emails (email, pin) VALUES (?, ?)", (email, pin))
             
+    # Make sure admin always has a pin assigned even in existing databases
+    cursor.execute("UPDATE authorized_emails SET pin = '0000' WHERE email = ? AND (pin IS NULL OR pin = '')", (ADMIN_EMAIL.lower(),))
+    
+    # Give any other existing emails a random default pin if they don't have one
+    cursor.execute("SELECT email FROM authorized_emails WHERE pin IS NULL OR pin = ''")
+    empty_pin_rows = cursor.fetchall()
+    for row in empty_pin_rows:
+        rand_pin = f"{random.randint(0, 9999):04d}"
+        cursor.execute("UPDATE authorized_emails SET pin = ? WHERE email = ?", (rand_pin, row[0]))
+
     conn.commit()
     conn.close()
 
@@ -86,7 +102,6 @@ def verify_credentials(email, pin):
 
 def add_authorized_email(email):
     clean_email = email.strip().lower()
-    # Generate a random 4-digit PIN (e.g., "4821")
     random_pin = f"{random.randint(0, 9999):04d}"
     
     conn = sqlite3.connect(DB_NAME)
@@ -409,10 +424,9 @@ with tab3:
         
         for row in authorized_rows:
             email_addr = row[0]
-            pin_code = row[1]
+            pin_code = row[1] if row[1] else "0000"
             col_email, col_btn = st.columns([3, 1])
             with col_email:
-                # Display email in bright yellow with its assigned PIN clearly visible to admin
                 display_text = f"• {email_addr} &nbsp;&nbsp;|&nbsp;&nbsp; 🔑 PIN: **{pin_code}**"
                 if email_addr == ADMIN_EMAIL.lower():
                     display_text += " (Master Admin)"
