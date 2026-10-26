@@ -175,7 +175,6 @@ tab1, tab2, tab3 = st.tabs(["📖 Contract & Handbook Expert", "📋 Grievance P
 with tab1:
     st.subheader("Contract & Employee Handbook - AI Search Hub")
     
-    # Check loaded documents
     contract_rec = get_document_from_db("contract")
     handbook_rec = get_document_from_db("handbook")
     
@@ -190,9 +189,8 @@ with tab1:
         if handbook_rec:
             st.success(f"📂 **Employee Handbook:** {handbook_rec[1]}")
         else:
-            st.info("ℹ️ Employee Handbook not uploaded yet (Optional).")
+            st.info("ℹ️ Employee Handbook not uploaded yet.")
 
-    # Document selection for search
     search_scope = st.selectbox(
         "Select Document to Search", 
         ["Master Contract Only", "Employee Handbook Only", "Both Documents Together"]
@@ -206,7 +204,6 @@ with tab1:
         elif not question:
             st.warning("⚠️ Please type a question.")
         else:
-            # Determine which files to feed to Gemini
             files_to_query = []
             if search_scope in ["Master Contract Only", "Both Documents Together"] and contract_rec:
                 files_to_query.append(("Master Contract", contract_rec[0]))
@@ -282,32 +279,36 @@ with tab3:
             st.markdown("#### Master Contract (CBA)")
             c_rec = get_document_from_db("contract")
             if c_rec:
-                st.info(f"Active: {c_rec[1]}")
+                st.success(f"📌 Active in DB: **{c_rec[1]}**")
                 if st.button("🗑️ Remove Master Contract", key="del_contract"):
                     delete_document_from_db("contract")
                     st.success("✅ Master Contract removed.")
                     st.rerun()
+            else:
+                st.warning("No Master Contract uploaded.")
             
             new_contract = st.file_uploader("Upload / Replace Master Contract (PDF)", type=["pdf"], key="upload_c")
             if new_contract:
                 save_document_to_db("contract", new_contract)
-                st.success("✅ Master Contract updated!")
+                st.success("✅ Master Contract updated & locked in!")
                 st.rerun()
                 
         with col_doc2:
             st.markdown("#### Employee Handbook")
             h_rec = get_document_from_db("handbook")
             if h_rec:
-                st.info(f"Active: {h_rec[1]}")
+                st.success(f"📌 Active in DB: **{h_rec[1]}**")
                 if st.button("🗑️ Remove Handbook", key="del_handbook"):
                     delete_document_from_db("handbook")
                     st.success("✅ Employee Handbook removed.")
                     st.rerun()
+            else:
+                st.info("No Employee Handbook uploaded.")
             
             new_handbook = st.file_uploader("Upload / Replace Handbook (PDF)", type=["pdf"], key="upload_h")
             if new_handbook:
                 save_document_to_db("handbook", new_handbook)
-                st.success("✅ Employee Handbook updated!")
+                st.success("✅ Employee Handbook updated & locked in!")
                 st.rerun()
         
         st.markdown("---")
