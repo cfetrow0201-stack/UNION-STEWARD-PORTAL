@@ -341,8 +341,9 @@ with tab1:
     
     contract_rec = get_document_from_db("contract")
     handbook_rec = get_document_from_db("handbook")
+    benefits_rec = get_document_from_db("employee_benefits")
     
-    col_status1, col_status2 = st.columns(2)
+    col_status1, col_status2, col_status3 = st.columns(3)
     with col_status1:
         if contract_rec:
             st.markdown(f"<div class='tech-card'>📂 <b>Master Contract:</b><br>{contract_rec[1]}</div>", unsafe_allow_html=True)
@@ -355,12 +356,18 @@ with tab1:
         else:
             st.markdown("<div class='tech-card' style='border-left-color: #94a3b8;'>ℹ️ <b>Employee Handbook:</b> Optional Offline</div>", unsafe_allow_html=True)
 
+    with col_status3:
+        if benefits_rec:
+            st.markdown(f"<div class='tech-card'>📂 <b>Employee Benefits:</b><br>{benefits_rec[1]}</div>", unsafe_allow_html=True)
+        else:
+            st.markdown("<div class='tech-card' style='border-left-color: #94a3b8;'>ℹ️ <b>Employee Benefits:</b> Optional Offline</div>", unsafe_allow_html=True)
+
     search_scope = st.selectbox(
         "QUERY TARGET SCOPE", 
-        ["Master Contract Only", "Employee Handbook Only", "Both Documents Together"]
+        ["Master Contract Only", "Employee Handbook Only", "Employee Benefits Only", "All Documents Together"]
     )
     
-    question = st.text_area("QUERY PARAMETERS", placeholder="e.g., What is the exact protocol for attendance point infractions?")
+    question = st.text_area("QUERY PARAMETERS", placeholder="e.g., What is the exact protocol for attendance point infractions or medical deductible coverage?")
     
     if st.button("EXECUTE NEURAL QUERY", type="primary"):
         if not api_key:
@@ -369,10 +376,12 @@ with tab1:
             st.warning("⚠️ Please specify query parameters.")
         else:
             files_to_query = []
-            if search_scope in ["Master Contract Only", "Both Documents Together"] and contract_rec:
+            if search_scope in ["Master Contract Only", "All Documents Together"] and contract_rec:
                 files_to_query.append(("Master Contract", contract_rec[0]))
-            if search_scope in ["Employee Handbook Only", "Both Documents Together"] and handbook_rec:
+            if search_scope in ["Employee Handbook Only", "All Documents Together"] and handbook_rec:
                 files_to_query.append(("Employee Handbook", handbook_rec[0]))
+            if search_scope in ["Employee Benefits Only", "All Documents Together"] and benefits_rec:
+                files_to_query.append(("Employee Benefits", benefits_rec[0]))
                 
             if not files_to_query:
                 st.warning("⚠️ Target document databases are empty.")
@@ -391,7 +400,7 @@ with tab1:
                         model="gemini-2.5-flash",
                         contents=contents,
                         config=types.GenerateContentConfig(
-                            system_instruction="You are an advanced tactical USW union contract and policy analyst assisting shop stewards. Provide precise, authoritative answers with exact article and section citations.",
+                            system_instruction="You are an advanced tactical USW union contract and policy analyst assisting shop stewards. Provide precise, authoritative answers with exact article, section, and benefit plan citations.",
                             temperature=0.2
                         )
                     )
@@ -496,7 +505,7 @@ with tab3:
     if st.session_state.user_email == ADMIN_EMAIL.lower():
         st.subheader("⚙️ SYSTEM ADMIN // REPOSITORY CONTROL")
         
-        col_doc1, col_doc2 = st.columns(2)
+        col_doc1, col_doc2, col_doc3 = st.columns(3)
         
         with col_doc1:
             st.markdown("#### Master Contract (CBA)")
@@ -532,6 +541,24 @@ with tab3:
             if new_handbook:
                 save_document_to_db("handbook", new_handbook)
                 st.success("✅ Employee Handbook locked into database!")
+                st.rerun()
+
+        with col_doc3:
+            st.markdown("#### Employee Benefits")
+            b_rec = get_document_from_db("employee_benefits")
+            if b_rec:
+                st.success(f"📌 Synced: **{b_rec[1]}**")
+                if st.button("🗑️ Purge Benefits", key="del_benefits"):
+                    delete_document_from_db("employee_benefits")
+                    st.success("✅ Benefits purged.")
+                    st.rerun()
+            else:
+                st.info("Repository Empty.")
+            
+            new_benefits = st.file_uploader("Upload / Overwrite Benefits (PDF)", type=["pdf"], key="upload_b")
+            if new_benefits:
+                save_document_to_db("employee_benefits", new_benefits)
+                st.success("✅ Employee Benefits locked into database!")
                 st.rerun()
         
         st.markdown("---")
