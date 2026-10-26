@@ -231,4 +231,15 @@ def add_authorized_email(email):
     cursor = conn.cursor()
     try:
         cursor.execute("INSERT INTO authorized_emails (email, pin) VALUES (?, ?)", (clean_email, random_pin))
-        conn.commit
+        conn.commit()
+        success = True
+    except sqlite3.IntegrityError:
+        success = False
+    finally:
+        conn.close()
+    return success
+
+def save_document_to_db(doc_type, uploaded_file):
+    conn = sqlite3.connect(DB_NAME, timeout=10.0)
+    cursor = conn.cursor()
+    pdf_bytes = uploaded_file.getvalue()
