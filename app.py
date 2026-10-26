@@ -10,7 +10,7 @@ from google.genai import types
 # --- PAGE CONFIG & ENHANCED CYBER STYLING ---
 st.set_page_config(page_title="USW // COMMAND CENTER", page_icon="🛡️", layout="wide")
 
-# Custom CSS with Continuous Seamless Ticker & Glowing Cyber Grid
+# Custom CSS with Scrolling Marquee Ticker & Glowing Cyber Grid
 st.markdown("""
     <style>
     /* Global Deep Cyber Theme with Glowing Grid Overlay */
@@ -32,7 +32,7 @@ st.markdown("""
         text-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
     }
     
-    /* Continuous High-Tech Ticker Bar */
+    /* Scrolling High-Tech Ticker Bar */
     .ticker-wrap {
         width: 100%;
         overflow: hidden;
@@ -48,7 +48,7 @@ st.markdown("""
     .ticker {
         display: inline-block;
         white-space: nowrap;
-        animation: marquee 30s linear infinite;
+        animation: marquee 25s linear infinite;
         font-family: 'Courier New', Courier, monospace;
         color: #FFD700;
         font-weight: bold;
@@ -56,8 +56,8 @@ st.markdown("""
         letter-spacing: 2px;
     }
     @keyframes marquee {
-        0%   { transform: translate3d(0, 0, 0); }
-        100% { transform: translate3d(-50%, 0, 0); }
+        0%   { transform: translate3d(100%, 0, 0); }
+        100% { transform: translate3d(-100%, 0, 0); }
     }
     
     /* Industrial Glass Cards with Glowing Border */
@@ -111,13 +111,13 @@ DB_NAME = "union_grievances.db"
 ADMIN_EMAIL = "cfetrow0201@gmail.com"
 ADMIN_PIN = "4812"
 
-# --- 3. SESSION STATE INITIALIZATION ---
+# --- 3. SESSION STATE INITIALIZATION (Must be early) ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "user_email" not in st.session_state:
     st.session_state.user_email = ""
 
-# --- 1. SETUP DATABASE & MIGRATIONS ---
+# --- 1. SETUP DATABASE & MIGRATIONS (with timeout for multi-device safety) ---
 def init_db():
     conn = sqlite3.connect(DB_NAME, timeout=10.0)
     cursor = conn.cursor()
@@ -285,10 +285,9 @@ def get_gemini_key():
         pass
     return st.sidebar.text_input("🔑 Gemini API Key (Admin Override)", type="password", value="")
 
-# Get live current time and formatted telemetry string (doubled for a continuous loop)
+# Get live current time and formatted telemetry string
 current_time_str = datetime.now().strftime("%B %d, %Y — %I:%M:%S %p")
-single_ticker = f"⚡ LIVE TELEMETRY: NORTH CANTON, OH &nbsp;&nbsp;|&nbsp;&nbsp; LOCAL TIME: {current_time_str} &nbsp;&nbsp;|&nbsp;&nbsp; AMBIENT TEMP: 44°F (CLEAR) &nbsp;&nbsp;|&nbsp;&nbsp; SYSTEM STATUS: SECURE & OPERATIONAL ⚡&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
-ticker_text = single_ticker + single_ticker
+ticker_text = f"⚡ LIVE TELEMETRY: NORTH CANTON, OH &nbsp;&nbsp;|&nbsp;&nbsp; LOCAL TIME: {current_time_str} &nbsp;&nbsp;|&nbsp;&nbsp; AMBIENT TEMP: 44°F (CLEAR) &nbsp;&nbsp;|&nbsp;&nbsp; SYSTEM STATUS: SECURE & OPERATIONAL ⚡"
 
 # --- 4. LOGIN GATE (USW Terminal Style) ---
 if not st.session_state.logged_in:
@@ -436,7 +435,7 @@ with tab2:
 
 with tab_safety:
     st.subheader("👥 Union Safety Rep & Union Safety Committee")
-    st.markdown("<p style='color: #94a3b8; font-family: monospace;'>Official Plant Safety Committee Directory & Plant FAP Contacts (Rev. 8/31/2026) — <i>Tap numbers to call or hold to copy.</i></p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #94a3b8; font-family: monospace;'>Official Plant Safety Committee Directory & Plant FAP Contacts (Rev. 8/31/2026)</p>", unsafe_allow_html=True)
     
     safety_data = [
         # Harrison Steel Plant "HSP" (1835 Dueber Avenue S.W., Canton OH 44706)
@@ -482,28 +481,145 @@ with tab_safety:
         {"Plant / Location": "FAP Leads - Plant", "Name / Area": "Greg Smith - HSP, Machine Shop", "Clock #": "181-025", "Turn": "Days", "Crew": "", "Phone": "(330) 437-8015", "Email": ""}
     ]
     
-    search_term = st.text_input("🔍 Search Directory by Name, Plant, or Area:", "")
+    df_safety = pd.DataFrame(safety_data)
     
-    html_table = """
-    <style>
-        .safety-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 13px;
-            background: rgba(11, 17, 32, 0.95);
-            border: 1px solid rgba(255, 215, 0, 0.3);
-            border-radius: 6px;
-            overflow: hidden;
-        }
-        .safety-table th {
-            background-color: #1e293b;
-            color: #FFD700;
-            padding: 12px;
-            text-align: left;
-            border-bottom: 2px solid rgba(255, 215, 0, 0.4);
-        }
-        .safety-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid rgba(255, 215, 0, 0.1);
-            color
+    search_term = st.text_input("🔍 Search Directory by Name, Plant, or Area:", "")
+    if search_term:
+        mask = df_safety.apply(lambda row: row.astype(str).str.contains(search_term, case=False).any(), axis=1)
+        df_filtered = df_safety[mask]
+    else:
+        df_filtered = df_safety
+        
+    st.dataframe(df_filtered, use_container_width=True, hide_index=True)
+
+with tab3:
+    if st.session_state.user_email == ADMIN_EMAIL.lower():
+        st.subheader("⚙️ SYSTEM ADMIN // REPOSITORY CONTROL")
+        
+        col_doc1, col_doc2 = st.columns(2)
+        
+        with col_doc1:
+            st.markdown("#### Master Contract (CBA)")
+            c_rec = get_document_from_db("contract")
+            if c_rec:
+                st.success(f"📌 Synced: **{c_rec[1]}**")
+                if st.button("🗑️ Purge Master Contract", key="del_contract"):
+                    delete_document_from_db("contract")
+                    st.success("✅ Contract purged.")
+                    st.rerun()
+            else:
+                st.warning("Repository Empty.")
+            
+            new_contract = st.file_uploader("Upload / Overwrite Master Contract (PDF)", type=["pdf"], key="upload_c")
+            if new_contract:
+                save_document_to_db("contract", new_contract)
+                st.success("✅ Master Contract locked into database!")
+                st.rerun()
+                
+        with col_doc2:
+            st.markdown("#### Employee Handbook")
+            h_rec = get_document_from_db("handbook")
+            if h_rec:
+                st.success(f"📌 Synced: **{h_rec[1]}**")
+                if st.button("🗑️ Purge Handbook", key="del_handbook"):
+                    delete_document_from_db("handbook")
+                    st.success("✅ Handbook purged.")
+                    st.rerun()
+            else:
+                st.info("Repository Empty.")
+            
+            new_handbook = st.file_uploader("Upload / Overwrite Handbook (PDF)", type=["pdf"], key="upload_h")
+            if new_handbook:
+                save_document_to_db("handbook", new_handbook)
+                st.success("✅ Employee Handbook locked into database!")
+                st.rerun()
+        
+        st.markdown("---")
+        st.subheader("⚙️ Pipeline Record Modification")
+        
+        df_grievances = load_grievances()
+        if not df_grievances.empty:
+            grievant_options = {f"ID {row['id']}: {row['grievant']} ({row['articles']})": row['id'] for index, row in df_grievances.iterrows()}
+            selected_label = st.selectbox("Select Record to Modify", options=list(grievant_options.keys()))
+            selected_id = grievant_options[selected_label]
+            
+            record = df_grievances[df_grievances['id'] == selected_id].iloc[0]
+            
+            with st.form("edit_grievance_form"):
+                st.markdown(f"**Modifying Record ID: {selected_id}** (Origin: {record['user_email']})")
+                e_name = st.text_input("Grievant Name & Department", value=record['grievant'])
+                e_date = st.text_input("Date of Occurrence", value=record['occ_date'])
+                e_articles = st.text_input("Contract Article(s) Violated", value=record['articles'])
+                
+                steps_list = ["Step 1 (Supervisor)", "Step 2 (HR / Dept Head)", "Step 3 (Plant Mgr)", "Arbitration"]
+                default_step_idx = steps_list.index(record['step']) if record['step'] in steps_list else 0
+                e_step = st.selectbox("Current Step", steps_list, index=default_step_idx)
+                
+                e_steward = st.text_input("Assigned Steward", value=record['steward'])
+                e_committeeman = st.text_input("Assigned Grievance Committeeman", value=record['committeeman'] if record['committeeman'] else "")
+                e_facts = st.text_area("Statement of Facts / Notes", value=record['facts'])
+                e_remedy = st.text_area("Remedy Demanded", value=record['remedy'])
+                
+                col_update, col_delete = st.columns(2)
+                with col_update:
+                    update_submitted = st.form_submit_button("💾 UPDATE RECORD", type="primary")
+                with col_delete:
+                    delete_submitted = st.form_submit_button("🗑️ PURGE RECORD", type="secondary")
+                
+                if update_submitted:
+                    update_grievance(selected_id, e_name, e_date, e_articles, e_step, e_steward, e_committeeman, e_facts, e_remedy)
+                    st.success(f"✅ Record ID {selected_id} updated successfully!")
+                    st.rerun()
+                
+                if delete_submitted:
+                    delete_grievance(selected_id)
+                    st.success(f"🗑️ Record ID {selected_id} purged from database!")
+                    st.rerun()
+        else:
+            st.info("No records in pipeline to modify.")
+        
+        st.markdown("---")
+        st.subheader("⚙️ Access Control Matrix & Assigned PINs")
+        new_email = st.text_input("Authorize New IDENT (Email)")
+        if st.button("AUTHORIZE IDENT"):
+            if not new_email or "@" not in new_email:
+                st.error("⚠️ Invalid email syntax.")
+            else:
+                if add_authorized_email(new_email):
+                    st.success(f"✅ Authorized {new_email} with auto-generated PIN.")
+                    st.rerun()
+                else:
+                    st.error(f"⚠️ {new_email} is already in the access matrix.")
+        
+        st.markdown("---")
+        st.markdown("#### ACTIVE ACCESS MATRIX:")
+        
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("SELECT email, pin FROM authorized_emails")
+        authorized_rows = cursor.fetchall()
+        conn.close()
+        
+        for row in authorized_rows:
+            email_addr = row[0]
+            pin_code = row[1] if row[1] else "4812"
+            col_email, col_btn = st.columns([3, 1])
+            with col_email:
+                display_text = f"• {email_addr} &nbsp;&nbsp;|&nbsp;&nbsp; 🔑 PIN: **{pin_code}**"
+                if email_addr == ADMIN_EMAIL.lower():
+                    display_text += " [ROOT ADMIN]"
+                st.markdown(f"<p style='color: #FFD700; font-weight: bold; font-family: monospace;'>{display_text}</p>", unsafe_allow_html=True)
+            with col_btn:
+                if email_addr != ADMIN_EMAIL.lower():
+                    if st.button("REVOKE", key=f"revoke_{email_addr}"):
+                        conn = sqlite3.connect(DB_NAME)
+                        cursor = conn.cursor()
+                        cursor.execute("DELETE FROM authorized_emails WHERE email = ?", (email_addr,))
+                        conn.commit()
+                        conn.close()
+                        st.success(f"🚫 Revoked access for {email_addr}")
+                        st.rerun()
+                else:
+                    st.text("")
+    else:
+        st.warning("🔒 RESTRICTED ZONE: Root Admin Privileges Required.")
