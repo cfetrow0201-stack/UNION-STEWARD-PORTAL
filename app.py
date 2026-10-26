@@ -7,71 +7,58 @@ from datetime import datetime
 from google import genai
 from google.genai import types
 
-# --- PAGE CONFIG & CYBER-TECH STYLING ---
-st.set_page_config(page_title="UNION // COMMAND", page_icon="⚡", layout="wide")
+# --- PAGE CONFIG & USW INDUSTRIAL STYLING ---
+st.set_page_config(page_title="USW // COMMAND CENTER", page_icon="✊", layout="wide")
 
-# Custom CSS with Animated Cyber Grid Background
+# Custom CSS with USW Gold/Blue Palette and Steel Industrial Aesthetics
 st.markdown("""
     <style>
-    /* Global Cyber Dark Theme with Animated Grid */
+    /* Global Industrial Dark Theme with Steel Texture Feel */
     .stApp {
-        background-color: #050811;
+        background-color: #0b0f19;
         background-image: 
-            linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
-        background-size: 30px 30px;
-        background-position: -1px -1px;
+            linear-gradient(rgba(255, 215, 0, 0.02) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 215, 0, 0.02) 1px, transparent 1px);
+        background-size: 40px 40px;
         color: #e2e8f0;
     }
     
-    /* Subtle Glowing Scanline Effect */
-    .stApp::before {
-        content: " ";
-        display: block;
-        position: fixed;
-        top: 0; left: 0; bottom: 0; right: 0;
-        background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
-        background-size: 100% 4px;
-        z-index: 99999;
-        pointer-events: none;
-        opacity: 0.3;
-    }
-    
-    /* Headers & Typography */
+    /* Headers & Typography (USW Gold & Steel White) */
     h1, h2, h3 {
         font-family: 'Courier New', Courier, monospace;
         letter-spacing: 1.5px;
-        color: #00f0ff !important;
-        text-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+        color: #FFD700 !important;
+        text-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
     }
     
-    /* Cyber Glassmorphism Cards */
+    /* Industrial Glass Cards with USW Gold Left Border */
     .tech-card {
-        background: rgba(10, 15, 30, 0.85);
+        background: rgba(15, 23, 42, 0.9);
         border: 1px solid #1e293b;
-        border-left: 3px solid #00f0ff;
+        border-left: 4px solid #FFD700;
         padding: 20px;
         border-radius: 6px;
         margin-bottom: 20px;
-        box-shadow: 0 4px 20px rgba(0, 240, 255, 0.08);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     }
     
-    /* Success / Active indicators */
+    /* USW Active Badge */
     .status-badge {
-        background-color: rgba(0, 255, 102, 0.1);
-        border: 1px solid #00ff66;
-        color: #00ff66;
-        padding: 4px 10px;
+        background-color: rgba(255, 215, 0, 0.1);
+        border: 1px solid #FFD700;
+        color: #FFD700;
+        padding: 6px 12px;
         border-radius: 4px;
         font-family: monospace;
-        font-size: 12px;
-        box-shadow: 0 0 8px rgba(0, 255, 102, 0.2);
+        font-size: 13px;
+        font-weight: bold;
+        box-shadow: 0 0 10px rgba(255, 215, 0, 0.15);
     }
     
     /* Streamlit Tabs Adjustments */
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
-        background-color: rgba(10, 15, 30, 0.9);
+        background-color: rgba(15, 23, 42, 0.95);
         padding: 10px;
         border-radius: 6px;
         border: 1px solid #1e293b;
@@ -83,9 +70,9 @@ st.markdown("""
     }
     .stTabs [aria-selected="true"] {
         background-color: #1e293b !important;
-        color: #00f0ff !important;
-        border-bottom: 2px solid #00f0ff !important;
-        box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+        color: #FFD700 !important;
+        border-bottom: 2px solid #FFD700 !important;
+        box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -264,17 +251,20 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.user_email = ""
 
-# --- 4. LOGIN GATE (Terminal Style) ---
+# --- 4. LOGIN GATE (USW Terminal Style) ---
 if not st.session_state.logged_in:
-    st.markdown("<h1 style='text-align: center; color: #00f0ff;'>⚡ UNION // COMMAND ⚡</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #FFD700;'>✊ UNITED STEELWORKERS // COMMAND ✊</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; font-family: monospace; color: #94a3b8;'>SECURE STEWARD PORTAL // AUTHENTICATION REQUIRED</p>", unsafe_allow_html=True)
+    
+    # High-tech industrial steel banner image incorporated into login
+    st.image("https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=1200&q=80", use_container_width=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         with st.form("login_form"):
             email_attempt = st.text_input("IDENT (Authorized Email):")
             pin_attempt = st.text_input("ACCESS PIN (4-Digit):", type="password", max_chars=4)
-            login_submitted = st.form_submit_button("INITIALIZE SESSION", type="primary", use_container_width=True)
+            login_submitted = st.form_submit_button("INITIALIZE SECURE SESSION", type="primary", use_container_width=True)
             
             if login_submitted:
                 if verify_credentials(email_attempt, pin_attempt):
@@ -286,8 +276,12 @@ if not st.session_state.logged_in:
     st.stop()
 
 # --- 5. MAIN APP INTERFACE ---
-st.markdown("<h1 style='color: #00f0ff;'>⚡ UNION // COMMAND CENTER</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='color: #FFD700;'>✊ USW // STEWARD COMMAND CENTER</h1>", unsafe_allow_html=True)
 st.markdown(f"<span class='status-badge'>🟢 ACTIVE SESSION // {st.session_state.user_email.upper()}</span>", unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
+
+# High-res industrial steel banner in main dashboard
+st.image("https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=1400&q=80", use_container_width=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
 api_key = get_gemini_key()
@@ -349,7 +343,7 @@ with tab1:
                         model="gemini-2.5-flash",
                         contents=contents,
                         config=types.GenerateContentConfig(
-                            system_instruction="You are an advanced tactical labor union contract and policy analyst assisting shop stewards. Provide precise, authoritative answers with exact article and section citations.",
+                            system_instruction="You are an advanced tactical USW union contract and policy analyst assisting shop stewards. Provide precise, authoritative answers with exact article and section citations.",
                             temperature=0.2
                         )
                     )
@@ -507,7 +501,7 @@ with tab3:
                 display_text = f"• {email_addr} &nbsp;&nbsp;|&nbsp;&nbsp; 🔑 PIN: **{pin_code}**"
                 if email_addr == ADMIN_EMAIL.lower():
                     display_text += " [ROOT ADMIN]"
-                st.markdown(f"<p style='color: #00ff66; font-weight: bold; font-family: monospace;'>{display_text}</p>", unsafe_allow_html=True)
+                st.markdown(f"<p style='color: #FFD700; font-weight: bold; font-family: monospace;'>{display_text}</p>", unsafe_allow_html=True)
             with col_btn:
                 if email_addr != ADMIN_EMAIL.lower():
                     if st.button("REVOKE", key=f"revoke_{email_addr}"):
