@@ -7,16 +7,34 @@ from datetime import datetime
 from google import genai
 from google.genai import types
 
-# --- PAGE CONFIG & HIGH-TECH STYLING ---
+# --- PAGE CONFIG & CYBER-TECH STYLING ---
 st.set_page_config(page_title="UNION // COMMAND", page_icon="⚡", layout="wide")
 
-# Custom CSS for High-Tech / Cyber-Operations Aesthetic
+# Custom CSS with Animated Cyber Grid Background
 st.markdown("""
     <style>
-    /* Global Dark Tech Theme */
+    /* Global Cyber Dark Theme with Animated Grid */
     .stApp {
-        background-color: #0b0f19;
+        background-color: #050811;
+        background-image: 
+            linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+        background-size: 30px 30px;
+        background-position: -1px -1px;
         color: #e2e8f0;
+    }
+    
+    /* Subtle Glowing Scanline Effect */
+    .stApp::before {
+        content: " ";
+        display: block;
+        position: fixed;
+        top: 0; left: 0; bottom: 0; right: 0;
+        background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+        background-size: 100% 4px;
+        z-index: 99999;
+        pointer-events: none;
+        opacity: 0.3;
     }
     
     /* Headers & Typography */
@@ -24,17 +42,18 @@ st.markdown("""
         font-family: 'Courier New', Courier, monospace;
         letter-spacing: 1.5px;
         color: #00f0ff !important;
+        text-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
     }
     
-    /* Terminal / Glassmorphism Cards */
+    /* Cyber Glassmorphism Cards */
     .tech-card {
-        background: rgba(15, 23, 42, 0.8);
+        background: rgba(10, 15, 30, 0.85);
         border: 1px solid #1e293b;
         border-left: 3px solid #00f0ff;
         padding: 20px;
         border-radius: 6px;
         margin-bottom: 20px;
-        box-shadow: 0 4px 20px rgba(0, 240, 255, 0.05);
+        box-shadow: 0 4px 20px rgba(0, 240, 255, 0.08);
     }
     
     /* Success / Active indicators */
@@ -46,12 +65,13 @@ st.markdown("""
         border-radius: 4px;
         font-family: monospace;
         font-size: 12px;
+        box-shadow: 0 0 8px rgba(0, 255, 102, 0.2);
     }
     
-    /* Streamlit Metric & Tabs Adjustments */
+    /* Streamlit Tabs Adjustments */
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
-        background-color: #0f172a;
+        background-color: rgba(10, 15, 30, 0.9);
         padding: 10px;
         border-radius: 6px;
         border: 1px solid #1e293b;
@@ -65,6 +85,7 @@ st.markdown("""
         background-color: #1e293b !important;
         color: #00f0ff !important;
         border-bottom: 2px solid #00f0ff !important;
+        box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
     }
     </style>
 """, unsafe_allow_html=True)
