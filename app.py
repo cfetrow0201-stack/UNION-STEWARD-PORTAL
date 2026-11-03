@@ -404,7 +404,7 @@ with tab1:
                     contents.append(f"Question: {question}")
                     
                     response = client.models.generate_content(
-                        model="gemini-2.5-flash",
+                        model="gemini-3.8-flash",
                         contents=contents,
                         config=types.GenerateContentConfig(
                             system_instruction="You are an advanced tactical USW union contract and policy analyst assisting shop stewards. Provide precise, authoritative answers with exact article, section, and benefit plan citations.",
