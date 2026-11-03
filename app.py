@@ -289,20 +289,3 @@ def load_grievances():
     conn = sqlite3.connect(DB_NAME, timeout=10.0)
     df = pd.read_sql_query("SELECT * FROM grievances ORDER BY timestamp DESC", conn)
     conn.close()
-    return df
-
-def get_gemini_key():
-    if os.environ.get("GEMINI_API_KEY"):
-        return os.environ.get("GEMINI_API_KEY")
-    try:
-        if "GEMINI_API_KEY" in st.secrets:
-            return st.secrets["GEMINI_API_KEY"]
-    except Exception:
-        pass
-    return st.sidebar.text_input("🔑 Gemini API Key (Admin Override)", type="password", value="")
-
-current_time_str = datetime.now().strftime("%B %d, %Y — %I:%M:%S %p")
-ticker_text = f"⚡ LIVE TELEMETRY: NORTH CANTON, OH &nbsp;&nbsp;|&nbsp;&nbsp; LOCAL TIME: {current_time_str} &nbsp;&nbsp;|&nbsp;&nbsp; AMBIENT TEMP: 44°F (CLEAR) &nbsp;&nbsp;|&nbsp;&nbsp; SYSTEM STATUS: SECURE & OPERATIONAL ⚡"
-
-if not st.session_state.logged_in:
-    st.markdown("<h1 style='text-align
