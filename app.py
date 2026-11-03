@@ -117,7 +117,7 @@ if "logged_in" not in st.session_state:
 if "user_email" not in st.session_state:
     st.session_state.user_email = ""
 
-# --- 1. SETUP DATABASE & MIGRATIONS (with timeout for multi-device safety) ---
+# --- 1. SETUP DATABASE & MIGRATIONS (with automatic root folder PDF seeding) ---
 def init_db():
     conn = sqlite3.connect(DB_NAME, timeout=10.0)
     cursor = conn.cursor()
@@ -160,6 +160,33 @@ def init_db():
         )
     ''')
     
+    # Auto-seed Master Contract from repository root if missing
+    cursor.execute("SELECT COUNT(*) FROM master_documents WHERE doc_type = 'contract'")
+    if cursor.fetchone()[0] == 0:
+        # Look for typical contract filenames in the root folder automatically
+        potential_contract_files = [f for f in os.listdir(".") if f.lower().endswith(".pdf") and ("bla" in f.lower() or "contract" in f.lower())]
+        if potential_contract_files:
+            c_file = potential_contract_files[0]
+            with open(c_file, "rb") as f:
+                pdf_bytes = f.read()
+            cursor.execute('''
+                INSERT OR REPLACE INTO master_documents (doc_type, pdf_data, file_name, updated_at)
+                VALUES ('contract', ?, ?, CURRENT_TIMESTAMP)
+            ''', (pdf_bytes, c_file))
+
+    # Auto-seed Employee Handbook from repository root if missing
+    cursor.execute("SELECT COUNT(*) FROM master_documents WHERE doc_type = 'handbook'")
+    if cursor.fetchone()[0] == 0:
+        potential_handbook_files = [f for f in os.listdir(".") if f.lower().endswith(".pdf") and "handbook" in f.lower()]
+        if potential_handbook_files:
+            h_file = potential_handbook_files[0]
+            with open(h_file, "rb") as f:
+                pdf_bytes = f.read()
+            cursor.execute('''
+                INSERT OR REPLACE INTO master_documents (doc_type, pdf_data, file_name, updated_at)
+                VALUES ('handbook', ?, ?, CURRENT_TIMESTAMP)
+            ''', (pdf_bytes, h_file))
+
     cursor.execute("SELECT COUNT(*) FROM authorized_emails")
     count = cursor.fetchone()[0]
     if count == 0:
