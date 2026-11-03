@@ -311,4 +311,12 @@ ticker_text = f"⚡ LIVE TELEMETRY: NORTH CANTON, OH &nbsp;&nbsp;|&nbsp;&nbsp; L
 
 if not st.session_state.logged_in:
     st.markdown("<h1 style='text-align: center; color: #FFD700;'>🛡️ UNITED STEELWORKERS // COMMAND 🛡️</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:
+    st.markdown("<p style='text-align: center; font-family: monospace; color: #94a3b8;'>SECURE STEWARD PORTAL // AUTHENTICATION REQUIRED</p>", unsafe_allow_html=True)
+    
+    st.markdown(f"""
+        <div class="ticker-wrap">
+            <div class="ticker">{ticker_text}</div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col
