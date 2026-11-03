@@ -257,4 +257,52 @@ def get_document_from_db(doc_type):
     conn.close()
     return row
 
-def save_grievance(email, grievant, date, articles, step, steward, committeeman
+def save_grievance(email, grievant, date, articles, step, steward, committeeman, facts, remedy, image_name):
+    conn = sqlite3.connect(DB_NAME, timeout=10.0)
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO grievances (user_email, grievant, occ_date, articles, step, steward, committeeman, facts, remedy, evidence_image)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (email.strip().lower(), grievant, date, articles, step, steward, committeeman, facts, remedy, image_name))
+    conn.commit()
+    conn.close()
+
+def update_grievance(g_id, grievant, date, articles, step, steward, committeeman, facts, remedy):
+    conn = sqlite3.connect(DB_NAME, timeout=10.0)
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE grievances 
+        SET grievant = ?, occ_date = ?, articles = ?, step = ?, steward = ?, committeeman = ?, facts = ?, remedy = ?
+        WHERE id = ?
+    """, (grievant, date, articles, step, steward, committeeman, facts, remedy, g_id))
+    conn.commit()
+    conn.close()
+
+def delete_grievance(g_id):
+    conn = sqlite3.connect(DB_NAME, timeout=10.0)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM grievances WHERE id = ?", (g_id,))
+    conn.commit()
+    conn.close()
+
+def load_grievances():
+    conn = sqlite3.connect(DB_NAME, timeout=10.0)
+    df = pd.read_sql_query("SELECT * FROM grievances ORDER BY timestamp DESC", conn)
+    conn.close()
+    return df
+
+def get_gemini_key():
+    if os.environ.get("GEMINI_API_KEY"):
+        return os.environ.get("GEMINI_API_KEY")
+    try:
+        if "GEMINI_API_KEY" in st.secrets:
+            return st.secrets["GEMINI_API_KEY"]
+    except Exception:
+        pass
+    return st.sidebar.text_input("🔑 Gemini API Key (Admin Override)", type="password", value="")
+
+current_time_str = datetime.now().strftime("%B %d, %Y — %I:%M:%S %p")
+ticker_text = f"⚡ LIVE TELEMETRY: NORTH CANTON, OH &nbsp;&nbsp;|&nbsp;&nbsp; LOCAL TIME: {current_time_str} &nbsp;&nbsp;|&nbsp;&nbsp; AMBIENT TEMP: 44°F (CLEAR) &nbsp;&nbsp;|&nbsp;&nbsp; SYSTEM STATUS: SECURE & OPERATIONAL ⚡"
+
+if not st.session_state.logged_in:
+    st.markdown("<h1 style='text-align
