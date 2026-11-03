@@ -177,7 +177,6 @@ def init_db():
     if os.path.exists("apps.access.xlsx"):
         try:
             df_access = pd.read_excel("apps.access.xlsx")
-            # Assumes columns might be named 'email' / 'pin' or similar, let's normalize column search
             df_access.columns = [str(c).strip().lower() for c in df_access.columns]
             email_col = next((c for c in df_access.columns if 'email' in c), df_access.columns[0])
             pin_col = next((c for c in df_access.columns if 'pin' in c or 'code' in c), df_access.columns[1] if len(df_access.columns) > 1 else None)
@@ -186,7 +185,6 @@ def init_db():
                 em = str(row[email_col]).strip().lower()
                 if "@" in em:
                     pi = str(row[pin_col]).strip() if pin_col and pd.notna(row[pin_col]) else f"{random.randint(0, 9999):04d}"
-                    # Format pin cleanly (e.g. remove decimal points if read as float from excel)
                     if pi.endswith('.0'):
                         pi = pi[:-2]
                     cursor.execute("INSERT OR IGNORE INTO authorized_emails (email, pin) VALUES (?, ?)", (em, pi))
@@ -446,153 +444,4 @@ with tab2:
             
             submitted = st.form_submit_button("COMMIT TO PIPELINE", type="primary")
             if submitted:
-                if not g_name or not g_articles:
-                    st.error("⚠️ Grievant Name and Article(s) are required fields.")
-                else:
-                    img_name = uploaded_image.name if uploaded_image is not None else "No Image"
-                    save_grievance(st.session_state.user_email, g_name, g_date, g_articles, g_step, g_steward, g_committeeman, g_facts, g_remedy, img_name)
-                    st.success("✅ Grievance logged successfully!")
-                    st.rerun()
-
-    with col2:
-        st.subheader("Active Pipeline Telemetry")
-        df = load_grievances()
-        if not df.empty:
-            st.dataframe(df[["id", "user_email", "grievant", "occ_date", "articles", "step", "steward", "committeeman", "timestamp"]], use_container_width=True)
-        else:
-            st.info("Pipeline telemetry empty.")
-
-with tab_safety:
-    st.subheader("👥 Union Safety Rep & Union Safety Committee")
-    st.markdown("<p style='color: #94a3b8; font-family: monospace;'>Official Plant Safety Committee Directory & Plant FAP Contacts (Rev. 8/31/2026)</p>", unsafe_allow_html=True)
-    
-    safety_data = [
-        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Sean Els - Safety Committee Chair - USR, Training", "Clock #": "001-002", "Turn": "Days", "Crew": "", "Phone": "(330) 495-7614", "Email": "sean.l.els@metallus.com (Work ext. 2913)"},
-        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Scott Mathie - USR, Training", "Clock #": "001-800", "Turn": "Days", "Crew": "", "Phone": "(330) 412-6508", "Email": "robert.s.mathie@metallus.com (Work ext. 3967)"},
-        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Curtis Green - USR, Compliance", "Clock #": "001-502", "Turn": "Days", "Crew": "", "Phone": "(330) 949-5148", "Email": "curtis.e.green@metallus.com (Work ext. 4716)"},
-        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Tim Johnson - USR, Plant & Shops", "Clock #": "001-003", "Turn": "Days", "Crew": "", "Phone": "(330) 933-0824", "Email": "timothy.j.johnson@metallus.com (Work ext. 5026)"},
-        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Chad Steiner - Machine Shop", "Clock #": "181-062", "Turn": "Days", "Crew": "", "Phone": "(740) 391-0555", "Email": ""},
-        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Dave Ramsey - Finishing", "Clock #": "133-022", "Turn": "4", "Crew": "B", "Phone": "(330) 265-7701", "Email": ""},
-        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Brad Holston - Equipment Rebuild", "Clock #": "181-001", "Turn": "Days", "Crew": "", "Phone": "(330) 347-1188", "Email": ""},
-        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Steve Carlisle - Weld Shop", "Clock #": "181-505", "Turn": "Days", "Crew": "", "Phone": "(330) 340-0876", "Email": ""},
-        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Seth McKenzie - Finishing", "Clock #": "133-029", "Turn": "4", "Crew": "C", "Phone": "(330) 232-5536", "Email": ""},
-
-        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "John Lidderdale - USR, Steelmaking", "Clock #": "001-801", "Turn": "Days", "Crew": "", "Phone": "(330) 209-1254", "Email": "john.t.lidderdale@metallus.com (Work ext. 4682)"},
-        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Mike Henderson - USR, Steel Processing", "Clock #": "001-804", "Turn": "Days", "Crew": "", "Phone": "(330) 428-2503", "Email": "michael.l.henderson@metallus.com (Work ext. 7360)"},
-        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Chuck Fetrow - BC", "Clock #": "250-084", "Turn": "3", "Crew": "C", "Phone": "(330) 488-4765", "Email": ""},
-        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Mike Kiser - Mech. Maint. Rolling Mill", "Clock #": "282-012", "Turn": "4", "Crew": "B", "Phone": "(330) 934-1190", "Email": ""},
-        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Jeff Thomas - Rolling Mill", "Clock #": "282-040", "Turn": "4", "Crew": "B", "Phone": "(330) 446-8285", "Email": ""},
-        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Adam Holland - Caster", "Clock #": "227-025", "Turn": "Days", "Crew": "", "Phone": "(330) 904-8489", "Email": ""},
-        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Daryl Smith - BC", "Clock #": "250-025", "Turn": "3", "Crew": "C", "Phone": "(330) 418-6012", "Email": ""},
-        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Alan Tack - Chem Lab", "Clock #": "008-003", "Turn": "4", "Crew": "B", "Phone": "(330) 323-5315", "Email": ""},
-        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Alex Rue - EAF", "Clock #": "218-054", "Turn": "4", "Crew": "C", "Phone": "(330) 606-5792", "Email": ""},
-        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Brandon Bartrug - EAF", "Clock #": "218-058", "Turn": "Days", "Crew": "", "Phone": "(740) 391-0109", "Email": ""},
-
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Brock McDevitt - USR, Tube Mills & Thermal Treat", "Clock #": "001-500", "Turn": "Days", "Crew": "", "Phone": "(330) 432-0705", "Email": "brock.a.mcdevitt@metallus.com (Work ext. 4249)"},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Shawn Lindner - USR, Finishing & Logistics", "Clock #": "001-501", "Turn": "Days", "Crew": "", "Phone": "(330) 575-4435", "Email": "shawn.lindner@metallus.com (Work ext. 5083)"},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Carrie Holland - IFL", "Clock #": "752-408", "Turn": "4", "Crew": "D", "Phone": "(330) 933-6620", "Email": ""},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Mike Kemp - 5 Tube Mill", "Clock #": "750-041", "Turn": "3", "Crew": "A", "Phone": "(330) 268-6375", "Email": ""},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Jason Ensinger - 3TM", "Clock #": "750-306", "Turn": "2", "Crew": "H", "Phone": "(330) 956-0178", "Email": ""},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Ed Smith - IFL", "Clock #": "752-002", "Turn": "Days", "Crew": "", "Phone": "(330) 949-7623", "Email": ""},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Jon Burdge - Logistics, Shipping", "Clock #": "190-078", "Turn": "Days", "Crew": "", "Phone": "(330) 224-2778", "Email": ""},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Marty Gugov - Logistics, Shipping", "Clock #": "190-019", "Turn": "2", "Crew": "B", "Phone": "(330) 437-5967", "Email": ""},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Ken Rayburn - Logistics, Shipping", "Clock #": "190-036", "Turn": "4", "Crew": "C", "Phone": "(330) 809-3183", "Email": ""},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Alex Hunt - Quench/Temper", "Clock #": "756-025", "Turn": "3", "Crew": "B", "Phone": "(330) 413-4839", "Email": ""},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Joe Plott - Thermal Treat, Islands", "Clock #": "185-527", "Turn": "4", "Crew": "C", "Phone": "(330) 428-1716", "Email": ""},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Marc Armstead - Met Lab", "Clock #": "007-021", "Turn": "2", "Crew": "Midnights", "Phone": "(330) 844-6363", "Email": ""},
-
-        {"Plant / Location": "FAP Leads - Plant", "Name / Area": "Carrie Holland - GSP, IFL", "Clock #": "752-408", "Turn": "Days", "Crew": "", "Phone": "(330) 933-6620", "Email": ""},
-        {"Plant / Location": "FAP Leads - Plant", "Name / Area": "Chuck Fetrow - FSP, BC", "Clock #": "250-084", "Turn": "3", "Crew": "A", "Phone": "(330) 488-4765", "Email": ""},
-        {"Plant / Location": "FAP Leads - Plant", "Name / Area": "Greg Smith - HSP, Machine Shop", "Clock #": "181-025", "Turn": "Days", "Crew": "", "Phone": "(330) 437-8015", "Email": ""}
-    ]
-    
-    df_safety = pd.DataFrame(safety_data)
-    search_term = st.text_input("🔍 Search Directory by Name, Plant, or Area:", "")
-    if search_term:
-        mask = df_safety.apply(lambda row: row.astype(str).str.contains(search_term, case=False).any(), axis=1)
-        df_filtered = df_safety[mask]
-    else:
-        df_filtered = df_safety
-        
-    st.dataframe(df_filtered, use_container_width=True, hide_index=True)
-
-with tab3:
-    if st.session_state.user_email == ADMIN_EMAIL.lower():
-        st.subheader("⚙️ SYSTEM ADMIN // REPOSITORY CONTROL")
-        
-        col_doc1, col_doc2, col_doc3 = st.columns(3)
-        
-        with col_doc1:
-            st.markdown("#### Master Contract (CBA)")
-            c_rec = get_document_from_db("contract")
-            if c_rec:
-                st.success(f"📌 Synced: **{c_rec[1]}**")
-                if st.button("🗑️ Purge Master Contract", key="del_contract"):
-                    delete_document_from_db("contract")
-                    st.success("✅ Contract purged.")
-                    st.rerun()
-            else:
-                st.warning("Repository Empty.")
-            
-            new_contract = st.file_uploader("Upload / Overwrite Master Contract (PDF)", type=["pdf"], key="upload_c")
-            if new_contract:
-                save_document_to_db("contract", new_contract)
-                st.success("✅ Master Contract locked into database!")
-                st.rerun()
-                
-        with col_doc2:
-            st.markdown("#### Employee Handbook")
-            h_rec = get_document_from_db("handbook")
-            if h_rec:
-                st.success(f"📌 Synced: **{h_rec[1]}**")
-                if st.button("🗑️ Purge Handbook", key="del_handbook"):
-                    delete_document_from_db("handbook")
-                    st.success("✅ Handbook purged.")
-                    st.rerun()
-            else:
-                st.info("Repository Empty.")
-            
-            new_handbook = st.file_uploader("Upload / Overwrite Handbook (PDF)", type=["pdf"], key="upload_h")
-            if new_handbook:
-                save_document_to_db("handbook", new_handbook)
-                st.success("✅ Employee Handbook locked into database!")
-                st.rerun()
-
-        with col_doc3:
-            st.markdown("#### Employee Benefits")
-            b_rec = get_document_from_db("employee_benefits")
-            if b_rec:
-                st.success(f"📌 Synced: **{b_rec[1]}**")
-                if st.button("🗑️ Purge Benefits", key="del_benefits"):
-                    delete_document_from_db("employee_benefits")
-                    st.success("✅ Benefits purged.")
-                    st.rerun()
-            else:
-                st.info("Repository Empty.")
-            
-            new_benefits = st.file_uploader("Upload / Overwrite Benefits (PDF)", type=["pdf"], key="upload_b")
-            if new_benefits:
-                save_document_to_db("employee_benefits", new_benefits)
-                st.success("✅ Employee Benefits locked into database!")
-                st.rerun()
-        
-        st.markdown("---")
-        st.subheader("⚙️ Pipeline Record Modification")
-        
-        df_grievances = load_grievances()
-        if not df_grievances.empty:
-            grievant_options = {f"ID {row['id']}: {row['grievant']} ({row['articles']})": row['id'] for index, row in df_grievances.iterrows()}
-            selected_label = st.selectbox("Select Record to Modify", options=list(grievant_options.keys()))
-            selected_id = grievant_options[selected_label]
-            
-            record = df_grievances[df_grievances['id'] == selected_id].iloc[0]
-            
-            with st.form("edit_grievance_form"):
-                st.markdown(f"**Modifying Record ID: {selected_id}** (Origin: {record['user_email']})")
-                e_name = st.text_input("Grievant Name & Department", value=record['grievant'])
-                e_date = st.text_input("Date of Occurrence", value=record['occ_date'])
-                e_articles = st.text_input("Contract Article(s) Violated", value=record['articles'])
-                
-                steps_list = ["Step 1 (Supervisor)", "Step 2 (HR / Dept Head)", "Step 3 (Plant Mgr)", "Arbitration"]
-                default_step_idx = steps_list.index(record['step']) if record['step'] in steps_list else 0
-                e_step = st.selectbox("Current Step", steps_list, index=default_step_
+                if not g
