@@ -342,6 +342,7 @@ st.markdown(f"""
 
 api_key = get_gemini_key()
 
+# Fixed: 4 tabs defined cleanly to match tab1, tab2, tab_safety, and tab3
 tab1, tab2, tab_safety, tab3 = st.tabs([
     "📖 AI INTELLIGENCE HUB", 
     "📋 GRIEVANCE PIPELINE", 
@@ -492,112 +493,4 @@ with tab_safety:
         {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Joe Plott - Thermal Treat, Islands", "Clock #": "185-527", "Turn": "4", "Crew": "C", "Phone": "(330) 428-1716", "Email": ""},
         {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Marc Armstead - Met Lab", "Clock #": "007-021", "Turn": "2", "Crew": "Midnights", "Phone": "(330) 844-6363", "Email": ""},
         {"Plant / Location": "FAP Leads - Plant", "Name / Area": "Carrie Holland - GSP, IFL", "Clock #": "752-408", "Turn": "Days", "Crew": "", "Phone": "(330) 933-6620", "Email": ""},
-        {"Plant / Location": "FAP Leads - Plant", "Name / Area": "Chuck Fetrow - FSP, BC", "Clock #": "250-084", "Turn": "3", "Crew": "A", "Phone": "(330) 488-4765", "Email": ""},
-        {"Plant / Location": "FAP Leads - Plant", "Name / Area": "Greg Smith - HSP, Machine Shop", "Clock #": "181-025", "Turn": "Days", "Crew": "", "Phone": "(330) 437-8015", "Email": ""}
-    ]
-    
-    df_safety = pd.DataFrame(safety_data)
-    search_term = st.text_input("🔍 Search Directory by Name, Plant, or Area:", "")
-    if search_term:
-        mask = df_safety.apply(lambda row: row.astype(str).str.contains(search_term, case=False).any(), axis=1)
-        df_filtered = df_safety[mask]
-    else:
-        df_filtered = df_safety
-        
-    st.dataframe(df_filtered, use_container_width=True, hide_index=True)
-
-with tab3:
-    if st.session_state.user_email == ADMIN_EMAIL.lower():
-        st.subheader("⚙️ SYSTEM ADMIN // REPOSITORY CONTROL")
-        
-        col_doc1, col_doc2, col_doc3 = st.columns(3)
-        
-        with col_doc1:
-            st.markdown("#### Master Contract (CBA)")
-            c_rec = get_document_from_db("contract")
-            if c_rec:
-                st.success(f"📌 Synced: **{c_rec[1]}**")
-                if st.button("🗑️ Purge Master Contract", key="del_contract"):
-                    delete_document_from_db("contract")
-                    st.success("✅ Contract purged.")
-                    st.rerun()
-            else:
-                st.warning("Repository Empty.")
-            
-            new_contract = st.file_uploader("Upload / Overwrite Master Contract (PDF)", type=["pdf"], key="upload_c")
-            if new_contract:
-                save_document_to_db("contract", new_contract)
-                st.success("✅ Master Contract locked into database!")
-                st.rerun()
-                
-        with col_doc2:
-            st.markdown("#### Employee Handbook")
-            h_rec = get_document_from_db("handbook")
-            if h_rec:
-                st.success(f"📌 Synced: **{h_rec[1]}**")
-                if st.button("🗑️ Purge Handbook", key="del_handbook"):
-                    delete_document_from_db("handbook")
-                    st.success("✅ Handbook purged.")
-                    st.rerun()
-            else:
-                st.info("Repository Empty.")
-            
-            new_handbook = st.file_uploader("Upload / Overwrite Handbook (PDF)", type=["pdf"], key="upload_h")
-            if new_handbook:
-                save_document_to_db("handbook", new_handbook)
-                st.success("✅ Employee Handbook locked into database!")
-                st.rerun()
-
-        with col_doc3:
-            st.markdown("#### Employee Benefits")
-            b_rec = get_document_from_db("employee_benefits")
-            if b_rec:
-                st.success(f"📌 Synced: **{b_rec[1]}**")
-                if st.button("🗑️ Purge Benefits", key="del_benefits"):
-                    delete_document_from_db("employee_benefits")
-                    st.success("✅ Benefits purged.")
-                    st.rerun()
-            else:
-                st.info("Repository Empty.")
-            
-            new_benefits = st.file_uploader("Upload / Overwrite Benefits (PDF)", type=["pdf"], key="upload_b")
-            if new_benefits:
-                save_document_to_db("employee_benefits", new_benefits)
-                st.success("✅ Employee Benefits locked into database!")
-                st.rerun()
-        
-        st.markdown("---")
-        st.subheader("⚙️ Pipeline Record Modification")
-        
-        df_grievances = load_grievances()
-        if not df_grievances.empty:
-            grievant_options = {f"ID {row['id']}: {row['grievant']} ({row['articles']})": row['id'] for index, row in df_grievances.iterrows()}
-            selected_label = st.selectbox("Select Record to Modify", options=list(grievant_options.keys()))
-            selected_id = grievant_options[selected_label]
-            
-            record = df_grievances[df_grievances['id'] == selected_id].iloc[0]
-            
-            with st.form("edit_grievance_form"):
-                st.markdown(f"**Modifying Record ID: {selected_id}** (Origin: {record['user_email']})")
-                e_name = st.text_input("Grievant Name & Department", value=record['grievant'])
-                e_date = st.text_input("Date of Occurrence", value=record['occ_date'])
-                e_articles = st.text_input("Contract Article(s) Violated", value=record['articles'])
-                
-                steps_list = ["Step 1 (Supervisor)", "Step 2 (HR / Dept Head)", "Step 3 (Plant Mgr)", "Arbitration"]
-                default_step_idx = steps_list.index(record['step']) if record['step'] in steps_list else 0
-                e_step = st.selectbox("Current Step", steps_list, index=default_step_idx)
-                
-                e_steward = st.text_input("Assigned Steward", value=record['steward'])
-                e_committeeman = st.text_input("Assigned Grievance Committeeman", value=record['committeeman'] if record['committeeman'] else "")
-                e_facts = st.text_area("Statement of Facts / Notes", value=record['facts'])
-                e_remedy = st.text_area("Remedy Demanded", value=record['remedy'])
-                
-                col_update, col_delete = st.columns(2)
-                with col_update:
-                    update_submitted = st.form_submit_button("💾 UPDATE RECORD", type="primary")
-                with col_delete:
-                    delete_submitted = st.form_submit_button("🗑️ PURGE RECORD", type="secondary")
-                
-                if update_submitted:
-                    update_grievance(selected_id, e_name, e_date, e_articles, e_step, e_steward, e_committeeman, e_facts, e_remedy)
-                    st.success(f"✅
+        {"Plant / Location": "FAP Leads - Plant", "Name / Area": "Chuck Fetrow - FSP, BC", "Clock #": "250-084", "Turn": "3", "Crew": "A", "Phone": "(330
