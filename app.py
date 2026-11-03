@@ -147,7 +147,6 @@ def init_db():
         )
     """)
     
-    # Auto-load contract PDF if present
     cursor.execute("SELECT COUNT(*) FROM master_documents WHERE doc_type = 'contract'")
     if cursor.fetchone()[0] == 0:
         potential_contract_files = [f for f in os.listdir(".") if f.lower().endswith(".pdf") and ("bla" in f.lower() or "contract" in f.lower())]
@@ -160,7 +159,6 @@ def init_db():
                 VALUES ('contract', ?, ?, CURRENT_TIMESTAMP)
             """, (pdf_bytes, c_file))
 
-    # Auto-load handbook PDF if present
     cursor.execute("SELECT COUNT(*) FROM master_documents WHERE doc_type = 'handbook'")
     if cursor.fetchone()[0] == 0:
         potential_handbook_files = [f for f in os.listdir(".") if f.lower().endswith(".pdf") and "handbook" in f.lower()]
@@ -173,7 +171,6 @@ def init_db():
                 VALUES ('handbook', ?, ?, CURRENT_TIMESTAMP)
             """, (pdf_bytes, h_file))
 
-    # Ingest apps.access.xlsx if present in the repository
     if os.path.exists("apps.access.xlsx"):
         try:
             df_access = pd.read_excel("apps.access.xlsx")
@@ -191,10 +188,8 @@ def init_db():
         except Exception as e:
             print(f"Error loading apps.access.xlsx: {e}")
 
-    # Always ensure Root Admin is present
     cursor.execute("INSERT OR REPLACE INTO authorized_emails (email, pin) VALUES (?, ?)", (ADMIN_EMAIL.lower(), ADMIN_PIN))
     
-    # Populate missing pins with random 4-digit codes
     cursor.execute("SELECT email FROM authorized_emails WHERE pin IS NULL OR pin = ''")
     empty_pin_rows = cursor.fetchall()
     for row in empty_pin_rows:
@@ -462,7 +457,7 @@ with tab2:
 
 with tab_safety:
     st.subheader("👥 Union Safety Rep & Union Safety Committee")
-    st.markdown("<p style='color: #94a3b8; font-family: monospace;'>Official Plant Safety Committee Directory & Plant FAP Contacts (Rev. 8/31/2026)</p>", unsafe_allow_html=True)
+    st.markdown("Official Plant Safety Committee Directory & Plant FAP Contacts (Rev. 8/31/2026)")
     
     safety_data = [
         {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Sean Els - Safety Committee Chair - USR, Training", "Clock #": "001-002", "Turn": "Days", "Crew": "", "Phone": "(330) 495-7614", "Email": "sean.l.els@metallus.com (Work ext. 2913)"},
@@ -605,58 +600,4 @@ with tab3:
                 
                 if update_submitted:
                     update_grievance(selected_id, e_name, e_date, e_articles, e_step, e_steward, e_committeeman, e_facts, e_remedy)
-                    st.success(f"✅ Record ID {selected_id} updated successfully!")
-                    st.rerun()
-                
-                if delete_submitted:
-                    delete_grievance(selected_id)
-                    st.success(f"🗑️ Record ID {selected_id} purged from database!")
-                    st.rerun()
-        else:
-            st.info("No records in pipeline to modify.")
-        
-        st.markdown("---")
-        st.subheader("⚙️ Access Control Matrix & Assigned PINs")
-        new_email = st.text_input("Authorize New IDENT (Email)")
-        if st.button("AUTHORIZE IDENT"):
-            if not new_email or "@" not in new_email:
-                st.error("⚠️ Invalid email syntax.")
-            else:
-                if add_authorized_email(new_email):
-                    st.success(f"✅ Authorized {new_email} with auto-generated PIN.")
-                    st.rerun()
-                else:
-                    st.error(f"⚠️ {new_email} is already in the access matrix.")
-        
-        st.markdown("---")
-        st.markdown("#### ACTIVE ACCESS MATRIX:")
-        
-        conn = sqlite3.connect(DB_NAME)
-        cursor = conn.cursor()
-        cursor.execute("SELECT email, pin FROM authorized_emails")
-        authorized_rows = cursor.fetchall()
-        conn.close()
-        
-        for row in authorized_rows:
-            email_addr = row[0]
-            pin_code = row[1] if row[1] else "4812"
-            col_email, col_btn = st.columns([3, 1])
-            with col_email:
-                display_text = f"• {email_addr} &nbsp;&nbsp;|&nbsp;&nbsp; 🔑 PIN: **{pin_code}**"
-                if email_addr == ADMIN_EMAIL.lower():
-                    display_text += " [ROOT ADMIN]"
-                st.markdown(f"<p style='color: #FFD700; font-weight: bold; font-family: monospace;'>{display_text}</p>", unsafe_allow_html=True)
-            with col_btn:
-                if email_addr != ADMIN_EMAIL.lower():
-                    if st.button("REVOKE", key=f"revoke_{email_addr}"):
-                        conn = sqlite3.connect(DB_NAME)
-                        cursor = conn.cursor()
-                        cursor.execute("DELETE FROM authorized_emails WHERE email = ?", (email_addr,))
-                        conn.commit()
-                        conn.close()
-                        st.success(f"🚫 Revoked access for {email_addr}")
-                        st.rerun()
-                else:
-                    st.text("")
-    else:
-        st.warning("🔒 RESTRICTED ZONE: Root Admin Privileges Required.")
+                    st.success(f"✅
