@@ -1,322 +1,53 @@
-import streamlit as st
-import sqlite3
-import pandas as pd
-import os
-import random
-from datetime import datetime
-from google import genai
-from google.genai import types
-
-# --- PAGE CONFIG & ENHANCED CYBER STYLING ---
-st.set_page_config(page_title="USW // COMMAND CENTER", page_icon="🛡️", layout="wide")
-
-# Custom CSS with Scrolling Marquee Ticker & Glowing Cyber Grid
-st.markdown("""
-    <style>
-    .stApp {
-        background-color: #060913;
-        background-image: 
-            radial-gradient(circle at 50% 0%, rgba(255, 215, 0, 0.08) 0%, transparent 60%),
-            linear-gradient(rgba(255, 215, 0, 0.04) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 215, 0, 0.04) 1px, transparent 1px);
-        background-size: 100% 100%, 35px 35px, 35px 35px;
-        color: #f8fafc;
-    }
-    h1, h2, h3 {
-        font-family: 'Courier New', Courier, monospace;
-        letter-spacing: 1.5px;
-        color: #FFD700 !important;
-        text-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
-    }
-    .ticker-wrap {
-        width: 100%;
-        overflow: hidden;
-        background-color: rgba(11, 17, 32, 0.95);
-        border: 1px solid rgba(255, 215, 0, 0.4);
-        border-left: 5px solid #FFD700;
-        border-right: 5px solid #FFD700;
-        padding: 10px 0;
-        border-radius: 6px;
-        margin-bottom: 25px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.6);
-    }
-    .ticker {
-        display: inline-block;
-        white-space: nowrap;
-        animation: marquee 25s linear infinite;
-        font-family: 'Courier New', Courier, monospace;
-        color: #FFD700;
-        font-weight: bold;
-        font-size: 14px;
-        letter-spacing: 2px;
-    }
-    @keyframes marquee {
-        0%   { transform: translate3d(100%, 0, 0); }
-        100% { transform: translate3d(-100%, 0, 0); }
-    }
-    .tech-card {
-        background: rgba(11, 17, 32, 0.92);
-        border: 1px solid rgba(255, 215, 0, 0.3);
-        border-left: 5px solid #FFD700;
-        padding: 20px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), inset 0 0 15px rgba(255, 215, 0, 0.03);
-    }
-    .status-badge {
-        background-color: rgba(255, 215, 0, 0.15);
-        border: 1px solid #FFD700;
-        color: #FFD700;
-        padding: 6px 14px;
-        border-radius: 4px;
-        font-family: monospace;
-        font-size: 13px;
-        font-weight: bold;
-        box-shadow: 0 0 12px rgba(255, 215, 0, 0.25);
-    }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        background-color: rgba(11, 17, 32, 0.95);
-        padding: 10px;
-        border-radius: 8px;
-        border: 1px solid rgba(255, 215, 0, 0.2);
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-    }
-    .stTabs [data-baseweb="tab"] {
-        color: #94a3b8;
-        font-family: monospace;
-        font-weight: bold;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #1e293b !important;
-        color: #FFD700 !important;
-        border-bottom: 2px solid #FFD700 !important;
-        box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-DB_NAME = "union_grievances.db"
-ADMIN_EMAIL = "cfetrow0201@gmail.com"
-ADMIN_PIN = "4812"
-
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-if "user_email" not in st.session_state:
-    st.session_state.user_email = ""
-
-def init_db():
-    conn = sqlite3.connect(DB_NAME, timeout=10.0)
-    cursor = conn.cursor()
+with tab_safety:
+    st.subheader("👥 Union Safety Rep & Union Safety Committee")
+    st.markdown("<p style='color: #94a3b8; font-family: monospace;'>Official Plant Safety Committee Directory & Plant FAP Contacts (Rev. 8/31/2026)</p>", unsafe_allow_html=True)
     
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS grievances (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_email TEXT,
-            grievant TEXT,
-            occ_date TEXT,
-            articles TEXT,
-            step TEXT,
-            steward TEXT,
-            committeeman TEXT,
-            facts TEXT,
-            remedy TEXT,
-            evidence_image TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    safety_data = [
+        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Sean Els - Safety Committee Chair - USR, Training", "Clock #": "001-002", "Turn": "Days", "Crew": "", "Phone": "(330) 495-7614", "Email": "sean.l.els@metallus.com (Work ext. 2913)"},
+        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Scott Mathie - USR, Training", "Clock #": "001-800", "Turn": "Days", "Crew": "", "Phone": "(330) 412-6508", "Email": "robert.s.mathie@metallus.com (Work ext. 3967)"},
+        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Curtis Green - USR, Compliance", "Clock #": "001-502", "Turn": "Days", "Crew": "", "Phone": "(330) 949-5148", "Email": "curtis.e.green@metallus.com (Work ext. 4716)"},
+        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Tim Johnson - USR, Plant & Shops", "Clock #": "001-003", "Turn": "Days", "Crew": "", "Phone": "(330) 933-0824", "Email": "timothy.j.johnson@metallus.com (Work ext. 5026)"},
+        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Chad Steiner - Machine Shop", "Clock #": "181-062", "Turn": "Days", "Crew": "", "Phone": "(740) 391-0555", "Email": ""},
+        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Dave Ramsey - Finishing", "Clock #": "133-022", "Turn": "4", "Crew": "B", "Phone": "(330) 265-7701", "Email": ""},
+        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Brad Holston - Equipment Rebuild", "Clock #": "181-001", "Turn": "Days", "Crew": "", "Phone": "(330) 347-1188", "Email": ""},
+        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Steve Carlisle - Weld Shop", "Clock #": "181-505", "Turn": "Days", "Crew": "", "Phone": "(330) 340-0876", "Email": ""},
+        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Seth McKenzie - Finishing", "Clock #": "133-029", "Turn": "4", "Crew": "C", "Phone": "(330) 232-5536", "Email": ""},
+
+        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "John Lidderdale - USR, Steelmaking", "Clock #": "001-801", "Turn": "Days", "Crew": "", "Phone": "(330) 209-1254", "Email": "john.t.lidderdale@metallus.com (Work ext. 4682)"},
+        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Mike Henderson - USR, Steel Processing", "Clock #": "001-804", "Turn": "Days", "Crew": "", "Phone": "(330) 428-2503", "Email": "michael.l.henderson@metallus.com (Work ext. 7360)"},
+        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Chuck Fetrow - BC", "Clock #": "250-084", "Turn": "3", "Crew": "C", "Phone": "(330) 488-4765", "Email": ""},
+        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Mike Kiser - Mech. Maint. Rolling Mill", "Clock #": "282-012", "Turn": "4", "Crew": "B", "Phone": "(330) 934-1190", "Email": ""},
+        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Jeff Thomas - Rolling Mill", "Clock #": "282-040", "Turn": "4", "Crew": "B", "Phone": "(330) 446-8285", "Email": ""},
+        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Adam Holland - Caster", "Clock #": "227-025", "Turn": "Days", "Crew": "", "Phone": "(330) 904-8489", "Email": ""},
+        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Daryl Smith - BC", "Clock #": "250-025", "Turn": "3", "Crew": "C", "Phone": "(330) 418-6012", "Email": ""},
+        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Alan Tack - Chem Lab", "Clock #": "008-003", "Turn": "4", "Crew": "B", "Phone": "(330) 323-5315", "Email": ""},
+        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Alex Rue - EAF", "Clock #": "218-054", "Turn": "4", "Crew": "C", "Phone": "(330) 606-5792", "Email": ""},
+        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Brandon Bartrug - EAF", "Clock #": "218-058", "Turn": "Days", "Crew": "", "Phone": "(740) 391-0109", "Email": ""},
+
+        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Brock McDevitt - USR, Tube Mills & Thermal Treat", "Clock #": "001-500", "Turn": "Days", "Crew": "", "Phone": "(330) 432-0705", "Email": "brock.a.mcdevitt@metallus.com (Work ext. 4249)"},
+        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Shawn Lindner - USR, Finishing & Logistics", "Clock #": "001-501", "Turn": "Days", "Crew": "", "Phone": "(330) 575-4435", "Email": "shawn.lindner@metallus.com (Work ext. 5083)"},
+        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Carrie Holland - IFL", "Clock #": "752-408", "Turn": "4", "Crew": "D", "Phone": "(330) 933-6620", "Email": ""},
+        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Mike Kemp - 5 Tube Mill", "Clock #": "750-041", "Turn": "3", "Crew": "A", "Phone": "(330) 268-6375", "Email": ""},
+        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Jason Ensinger - 3TM", "Clock #": "750-306", "Turn": "2", "Crew": "H", "Phone": "(330) 956-0178", "Email": ""},
+        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Ed Smith - IFL", "Clock #": "752-002", "Turn": "Days", "Crew": "", "Phone": "(330) 949-7623", "Email": ""},
+        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Jon Burdge - Logistics, Shipping", "Clock #": "190-078", "Turn": "Days", "Crew": "", "Phone": "(330) 224-2778", "Email": ""},
+        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Marty Gugov - Logistics, Shipping", "Clock #": "190-019", "Turn": "2", "Crew": "B", "Phone": "(330) 437-5967", "Email": ""},
+        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Ken Rayburn - Logistics, Shipping", "Clock #": "190-036", "Turn": "4", "Crew": "C", "Phone": "(330) 809-3183", "Email": ""},
+        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Alex Hunt - Quench/Temper", "Clock #": "756-025", "Turn": "3", "Crew": "B", "Phone": "(330) 413-4839", "Email": ""},
+        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Joe Plott - Thermal Treat, Islands", "Clock #": "185-527", "Turn": "4", "Crew": "C", "Phone": "(330) 428-1716", "Email": ""},
+        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Marc Armstead - Met Lab", "Clock #": "007-021", "Turn": "2", "Crew": "Midnights", "Phone": "(330) 844-6363", "Email": ""},
+
+        {"Plant / Location": "FAP Leads - Plant", "Name / Area": "Carrie Holland - GSP, IFL", "Clock #": "752-408", "Turn": "Days", "Crew": "", "Phone": "(330) 933-6620", "Email": ""},
+        {"Plant / Location": "FAP Leads - Plant", "Name / Area": "Chuck Fetrow - FSP, BC", "Clock #": "250-084", "Turn": "3", "Crew": "A", "Phone": "(330) 488-4765", "Email": ""},
+        {"Plant / Location": "FAP Leads - Plant", "Name / Area": "Greg Smith - HSP, Machine Shop", "Clock #": "181-025", "Turn": "Days", "Crew": "", "Phone": "(330) 437-8015", "Email": ""}
+    ]
     
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS authorized_emails (
-            email TEXT PRIMARY KEY,
-            pin TEXT
-        )
-    """)
-    
-    cursor.execute("PRAGMA table_info(authorized_emails)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if "pin" not in columns:
-        cursor.execute("ALTER TABLE authorized_emails ADD COLUMN pin TEXT")
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS master_documents (
-            doc_type TEXT PRIMARY KEY,
-            pdf_data BLOB,
-            file_name TEXT,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    
-    # Auto-load contract PDF if present
-    cursor.execute("SELECT COUNT(*) FROM master_documents WHERE doc_type = 'contract'")
-    if cursor.fetchone()[0] == 0:
-        potential_contract_files = [f for f in os.listdir(".") if f.lower().endswith(".pdf") and ("bla" in f.lower() or "contract" in f.lower())]
-        if potential_contract_files:
-            c_file = potential_contract_files[0]
-            with open(c_file, "rb") as f:
-                pdf_bytes = f.read()
-            cursor.execute("""
-                INSERT OR REPLACE INTO master_documents (doc_type, pdf_data, file_name, updated_at)
-                VALUES ('contract', ?, ?, CURRENT_TIMESTAMP)
-            """, (pdf_bytes, c_file))
-
-    # Auto-load handbook PDF if present
-    cursor.execute("SELECT COUNT(*) FROM master_documents WHERE doc_type = 'handbook'")
-    if cursor.fetchone()[0] == 0:
-        potential_handbook_files = [f for f in os.listdir(".") if f.lower().endswith(".pdf") and "handbook" in f.lower()]
-        if potential_handbook_files:
-            h_file = potential_handbook_files[0]
-            with open(h_file, "rb") as f:
-                pdf_bytes = f.read()
-            cursor.execute("""
-                INSERT OR REPLACE INTO master_documents (doc_type, pdf_data, file_name, updated_at)
-                VALUES ('handbook', ?, ?, CURRENT_TIMESTAMP)
-            """, (pdf_bytes, h_file))
-
-    # Ingest apps.access.xlsx if present in the repository
-    if os.path.exists("apps.access.xlsx"):
-        try:
-            df_access = pd.read_excel("apps.access.xlsx")
-            df_access.columns = [str(c).strip().lower() for c in df_access.columns]
-            email_col = next((c for c in df_access.columns if 'email' in c), df_access.columns[0])
-            pin_col = next((c for c in df_access.columns if 'pin' in c or 'code' in c), df_access.columns[1] if len(df_access.columns) > 1 else None)
-            
-            for _, row in df_access.iterrows():
-                em = str(row[email_col]).strip().lower()
-                if "@" in em:
-                    pi = str(row[pin_col]).strip() if pin_col and pd.notna(row[pin_col]) else f"{random.randint(0, 9999):04d}"
-                    if pi.endswith('.0'):
-                        pi = pi[:-2]
-                    cursor.execute("INSERT OR IGNORE INTO authorized_emails (email, pin) VALUES (?, ?)", (em, pi))
-        except Exception as e:
-            print(f"Error loading apps.access.xlsx: {e}")
-
-    # Always ensure Root Admin is present
-    cursor.execute("INSERT OR REPLACE INTO authorized_emails (email, pin) VALUES (?, ?)", (ADMIN_EMAIL.lower(), ADMIN_PIN))
-    
-    # Populate missing pins with random 4-digit codes
-    cursor.execute("SELECT email FROM authorized_emails WHERE pin IS NULL OR pin = ''")
-    empty_pin_rows = cursor.fetchall()
-    for row in empty_pin_rows:
-        rand_pin = f"{random.randint(0, 9999):04d}"
-        cursor.execute("UPDATE authorized_emails SET pin = ? WHERE email = ?", (rand_pin, row[0]))
-
-    conn.commit()
-    conn.close()
-
-init_db()
-
-def verify_credentials(email, pin):
-    if not email or "@" not in email or not pin:
-        return False
-    try:
-        conn = sqlite3.connect(DB_NAME, timeout=10.0)
-        cursor = conn.cursor()
-        cursor.execute("SELECT pin FROM authorized_emails WHERE email = ?", (email.strip().lower(),))
-        result = cursor.fetchone()
-        conn.close()
-        if result and result[0] == pin.strip():
-            return True
-    except Exception:
-        pass
-    return False
-
-def add_authorized_email(email):
-    clean_email = email.strip().lower()
-    random_pin = f"{random.randint(0, 9999):04d}"
-    conn = sqlite3.connect(DB_NAME, timeout=10.0)
-    cursor = conn.cursor()
-    try:
-        cursor.execute("INSERT INTO authorized_emails (email, pin) VALUES (?, ?)", (clean_email, random_pin))
-        conn.commit()
-        success = True
-    except sqlite3.IntegrityError:
-        success = False
-    finally:
-        conn.close()
-    return success
-
-def save_document_to_db(doc_type, uploaded_file):
-    conn = sqlite3.connect(DB_NAME, timeout=10.0)
-    cursor = conn.cursor()
-    pdf_bytes = uploaded_file.getvalue()
-    cursor.execute("""
-        INSERT OR REPLACE INTO master_documents (doc_type, pdf_data, file_name, updated_at)
-        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-    """, (doc_type, pdf_bytes, uploaded_file.name))
-    conn.commit()
-    conn.close()
-
-def delete_document_from_db(doc_type):
-    conn = sqlite3.connect(DB_NAME, timeout=10.0)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM master_documents WHERE doc_type = ?", (doc_type,))
-    conn.commit()
-    conn.close()
-
-def get_document_from_db(doc_type):
-    conn = sqlite3.connect(DB_NAME, timeout=10.0)
-    cursor = conn.cursor()
-    cursor.execute("SELECT pdf_data, file_name FROM master_documents WHERE doc_type = ?", (doc_type,))
-    row = cursor.fetchone()
-    conn.close()
-    return row
-
-def save_grievance(email, grievant, date, articles, step, steward, committeeman, facts, remedy, image_name):
-    conn = sqlite3.connect(DB_NAME, timeout=10.0)
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO grievances (user_email, grievant, occ_date, articles, step, steward, committeeman, facts, remedy, evidence_image)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (email.strip().lower(), grievant, date, articles, step, steward, committeeman, facts, remedy, image_name))
-    conn.commit()
-    conn.close()
-
-def update_grievance(g_id, grievant, date, articles, step, steward, committeeman, facts, remedy):
-    conn = sqlite3.connect(DB_NAME, timeout=10.0)
-    cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE grievances 
-        SET grievant = ?, occ_date = ?, articles = ?, step = ?, steward = ?, committeeman = ?, facts = ?, remedy = ?
-        WHERE id = ?
-    """, (grievant, date, articles, step, steward, committeeman, facts, remedy, g_id))
-    conn.commit()
-    conn.close()
-
-def delete_grievance(g_id):
-    conn = sqlite3.connect(DB_NAME, timeout=10.0)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM grievances WHERE id = ?", (g_id,))
-    conn.commit()
-    conn.close()
-
-def load_grievances():
-    conn = sqlite3.connect(DB_NAME, timeout=10.0)
-    df = pd.read_sql_query("SELECT * FROM grievances ORDER BY timestamp DESC", conn)
-    conn.close()
-    return df
-
-def get_gemini_key():
-    if os.environ.get("GEMINI_API_KEY"):
-        return os.environ.get("GEMINI_API_KEY")
-    try:
-        if "GEMINI_API_KEY" in st.secrets:
-            return st.secrets["GEMINI_API_KEY"]
-    except Exception:
-        pass
-    return st.sidebar.text_input("🔑 Gemini API Key (Admin Override)", type="password", value="")
-
-current_time_str = datetime.now().strftime("%B %d, %Y — %I:%M:%S %p")
-ticker_text = f"⚡ LIVE TELEMETRY: NORTH CANTON, OH &nbsp;&nbsp;|&nbsp;&nbsp; LOCAL TIME: {current_time_str} &nbsp;&nbsp;|&nbsp;&nbsp; AMBIENT TEMP: 44°F (CLEAR) &nbsp;&nbsp;|&nbsp;&nbsp; SYSTEM STATUS: SECURE & OPERATIONAL ⚡"
-
-if not st.session_state.logged_in:
-    st.markdown("<h1 style='text-align: center; color: #FFD700;'>🛡️ UNITED STEELWORKERS // COMMAND 🛡️</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-family: monospace; color: #94a3b8;'>SECURE STEWARD PORTAL // AUTHENTICATION REQUIRED</p>", unsafe_allow_html=True)
-    
-    st.markdown(f"""
-        <div class="ticker-wrap">
-            <div class="ticker">{ticker_text}</div>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    col1, col2, col
+    df_safety = pd.DataFrame(safety_data)
+    search_term = st.text_input("🔍 Search Directory by Name, Plant, or Area:", "")
+    if search_term:
+        mask = df_safety.apply(lambda row: row.astype(str).str.contains(search_term, case=False).any(), axis=1)
+        df_filtered = df_safety[mask]
+    else:
+        df_filtered = df_safety
+        
+    st.dataframe(df_filtered, use_container_width=True, hide_index=True)
