@@ -203,4 +203,84 @@ def init_db():
     empty_pin_rows = cursor.fetchall()
     for row in empty_pin_rows:
         rand_pin = f"{random.randint(0, 9999):04d}"
-        cursor.execute("UPDATE authorized_emails SET
+        cursor.execute("UPDATE authorized_emails SET pin = ? WHERE email = ?", (rand_pin, row[0]))
+
+    conn.commit()
+    conn.close()
+
+init_db()
+
+def verify_credentials(email, pin):
+    if not email or "@" not in email or not pin:
+        return False
+    try:
+        conn = sqlite3.connect(DB_NAME, timeout=10.0)
+        cursor = conn.cursor()
+        cursor.execute("SELECT pin FROM authorized_emails WHERE email = ?", (email.strip().lower(),))
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result and result[0] == pin.strip():
+            return True
+    except Exception:
+        pass
+    return False
+
+def add_authorized_email(email):
+    clean_email = email.strip().lower()
+    random_pin = f"{random.randint(0, 9999):04d}"
+    
+    conn = sqlite3.connect(DB_NAME, timeout=10.0)
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO authorized_emails (email, pin) VALUES (?, ?)", (clean_email, random_pin))
+        conn.commit()
+        success = True
+    except sqlite3.IntegrityError:
+        success = False
+    finally:
+        conn.close()
+    return success
+
+def save_document_to_db(doc_type, uploaded_file):
+    conn = sqlite3.connect(DB_NAME, timeout=10.0)
+    cursor = conn.cursor()
+    pdf_bytes = uploaded_file.getvalue()
+    cursor.execute('''
+        INSERT OR REPLACE INTO master_documents (doc_type, pdf_data, file_name, updated_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+    ''', (doc_type, pdf_bytes, uploaded_file.name))
+    conn.commit()
+    conn.close()
+
+def delete_document_from_db(doc_type):
+    conn = sqlite3.connect(DB_NAME, timeout=10.0)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM master_documents WHERE doc_type = ?", (doc_type,))
+    conn.commit()
+    conn.close()
+
+def get_document_from_db(doc_type):
+    conn = sqlite3.connect(DB_NAME, timeout=10.0)
+    cursor = conn.cursor()
+    cursor.execute("SELECT pdf_data, file_name FROM master_documents WHERE doc_type = ?", (doc_type,))
+    row = cursor.fetchone()
+    conn.close()
+    return row
+
+def save_grievance(email, grievant, date, articles, step, steward, committeeman, facts, remedy, image_name):
+    conn = sqlite3.connect(DB_NAME, timeout=10.0)
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO grievances (user_email, grievant, occ_date, articles, step, steward, committeeman, facts, remedy, evidence_image)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (email.strip().lower(), grievant, date, articles, step, steward, committeeman, facts, remedy, image_name))
+    conn.commit()
+    conn.close()
+
+def update_grievance(g_id, grievant, date, articles, step, steward, committeeman, facts, remedy):
+    conn = sqlite3.connect(DB_NAME, timeout=10.0)
+    cursor = conn.cursor()
+    cursor.execute('''
+        UPDATE grievances 
+        SET grievant = ?, occ_date =
