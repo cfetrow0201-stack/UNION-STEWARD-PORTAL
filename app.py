@@ -126,15 +126,6 @@ def init_db():
         )
     """)
     
-    # Drop and recreate authorized_emails on boot to ensure apps.access.xlsx updates sync immediately
-    cursor.execute("DROP TABLE IF EXISTS authorized_emails")
-    cursor.execute("""
-        CREATE TABLE authorized_emails (
-            email TEXT PRIMARY KEY,
-            pin TEXT
-        )
-    """)
-    
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS master_documents (
             doc_type TEXT PRIMARY KEY,
@@ -168,6 +159,15 @@ def init_db():
                 VALUES ('handbook', ?, ?, CURRENT_TIMESTAMP)
             """, (pdf_bytes, h_file))
 
+    conn.commit()
+    conn.close()
+
+init_db()
+
+def get_authorized_users_df():
+    """Loads authorized users directly from apps.access.xlsx in the root repo directory"""
+    users_data = {ADMIN_EMAIL.lower(): ADMIN_PIN}
+    
     if os.path.exists("apps.access.xlsx"):
         try:
             df_access = pd.read_excel("apps.access.xlsx")
@@ -178,55 +178,23 @@ def init_db():
             for _, row in df_access.iterrows():
                 em = str(row[email_col]).strip().lower()
                 if "@" in em:
-                    pi = str(row[pin_col]).strip() if pin_col and pd.notna(row[pin_col]) else f"{random.randint(0, 9999):04d}"
+                    pi = str(row[pin_col]).strip() if pin_col and pd.notna(row[pin_col]) else "1234"
                     if pi.endswith('.0'):
                         pi = pi[:-2]
-                    cursor.execute("INSERT OR IGNORE INTO authorized_emails (email, pin) VALUES (?, ?)", (em, pi))
+                    users_data[em] = pi
         except Exception as e:
-            print(f"Error loading apps.access.xlsx: {e}")
-
-    cursor.execute("INSERT OR REPLACE INTO authorized_emails (email, pin) VALUES (?, ?)", (ADMIN_EMAIL.lower(), ADMIN_PIN))
-    
-    cursor.execute("SELECT email FROM authorized_emails WHERE pin IS NULL OR pin = ''")
-    empty_pin_rows = cursor.fetchall()
-    for row in empty_pin_rows:
-        rand_pin = f"{random.randint(0, 9999):04d}"
-        cursor.execute("UPDATE authorized_emails SET pin = ? WHERE email = ?", (rand_pin, row[0]))
-
-    conn.commit()
-    conn.close()
-
-init_db()
+            print(f"Error reading apps.access.xlsx: {e}")
+            
+    return users_data
 
 def verify_credentials(email, pin):
     if not email or "@" not in email or not pin:
         return False
-    try:
-        conn = sqlite3.connect(DB_NAME, timeout=10.0)
-        cursor = conn.cursor()
-        cursor.execute("SELECT pin FROM authorized_emails WHERE email = ?", (email.strip().lower(),))
-        result = cursor.fetchone()
-        conn.close()
-        if result and result[0] == pin.strip():
-            return True
-    except Exception:
-        pass
-    return False
-
-def add_authorized_email(email):
+    users_dict = get_authorized_users_df()
     clean_email = email.strip().lower()
-    random_pin = f"{random.randint(0, 9999):04d}"
-    conn = sqlite3.connect(DB_NAME, timeout=10.0)
-    cursor = conn.cursor()
-    try:
-        cursor.execute("INSERT INTO authorized_emails (email, pin) VALUES (?, ?)", (clean_email, random_pin))
-        conn.commit()
-        success = True
-    except sqlite3.IntegrityError:
-        success = False
-    finally:
-        conn.close()
-    return success
+    if clean_email in users_dict and users_dict[clean_email] == pin.strip():
+        return True
+    return False
 
 def save_document_to_db(doc_type, uploaded_file):
     conn = sqlite3.connect(DB_NAME, timeout=10.0)
@@ -609,51 +577,14 @@ with tab3:
             st.info("No records in pipeline to modify.")
         
         st.markdown("---")
-        st.subheader("⚙️ Access Control Matrix & Assigned PINs")
-        new_email = st.text_input("Authorize New IDENT (Email)")
-        if st.button("AUTHORIZE IDENT"):
-            if not new_email or "@" not in new_email:
-                st.error("⚠️ Invalid email syntax.")
-            else:
-                if add_authorized_email(new_email):
-                    st.success(f"✅ Authorized {new_email} with auto-generated PIN.")
-                    st.rerun()
-                else:
-                    st.error(f"⚠️ {new_email} is already in the access matrix.")
+        st.subheader("⚙️ Access Control Matrix (Loaded Live from root `apps.access.xlsx`)")
         
-        st.markdown("---")
-        st.markdown("#### ACTIVE ACCESS MATRIX (Loaded from Database / Excel):")
-        
-        conn = sqlite3.connect(DB_NAME)
-        df_access_list = pd.read_sql_query("SELECT email AS [Authorized Email], pin AS [Access PIN] FROM authorized_emails", conn)
-        conn.close()
+        users_dict = get_authorized_users_df()
+        df_access_list = pd.DataFrame(list(users_dict.items()), columns=["Authorized Email", "Access PIN"])
         
         if not df_access_list.empty:
             st.dataframe(df_access_list, use_container_width=True, hide_index=True)
-            
-            st.markdown("#### INDIVIDUAL ACCESS CONTROLS:")
-            for _, row in df_access_list.iterrows():
-                email_addr = row["Authorized Email"]
-                pin_code = row["Access PIN"]
-                col_email, col_btn = st.columns([3, 1])
-                with col_email:
-                    display_text = f"• {email_addr} &nbsp;&nbsp;|&nbsp;&nbsp; 🔑 PIN: **{pin_code}**"
-                    if email_addr == ADMIN_EMAIL.lower():
-                        display_text += " [ROOT ADMIN]"
-                    st.markdown(f"<p style='color: #FFD700; font-weight: bold; font-family: monospace;'>{display_text}</p>", unsafe_allow_html=True)
-                with col_btn:
-                    if email_addr != ADMIN_EMAIL.lower():
-                        if st.button("REVOKE", key=f"revoke_{email_addr}"):
-                            conn = sqlite3.connect(DB_NAME)
-                            cursor = conn.cursor()
-                            cursor.execute("DELETE FROM authorized_emails WHERE email = ?", (email_addr,))
-                            conn.commit()
-                            conn.close()
-                            st.success(f"🚫 Revoked access for {email_addr}")
-                            st.rerun()
-                    else:
-                        st.text("")
         else:
-            st.info("No authorized emails found in database.")
+            st.warning("⚠️ No emails found in apps.access.xlsx. Check file formatting.")
     else:
         st.warning("🔒 RESTRICTED ZONE: Root Admin Privileges Required.")
