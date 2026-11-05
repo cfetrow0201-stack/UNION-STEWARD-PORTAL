@@ -116,6 +116,42 @@ def sync_db_to_excel():
     except Exception as e:
         print(f"Error syncing to Excel: {e}")
 
+def restore_db_from_excel():
+    """Pulls all rows from grievance_backup.xlsx and re-inserts them into SQLite"""
+    if os.path.exists(BACKUP_FILE):
+        try:
+            conn = sqlite3.connect(DB_NAME, timeout=10.0)
+            cursor = conn.cursor()
+            df_backup = pd.read_excel(BACKUP_FILE)
+            for _, row in df_backup.iterrows():
+                # Check if this grievance already exists by checking details to avoid exact duplicates
+                cursor.execute("""
+                    SELECT COUNT(*) FROM grievances WHERE grievant = ? AND occ_date = ? AND articles = ?
+                """, (str(row.get("grievant", "")), str(row.get("occ_date", "")), str(row.get("articles", ""))))
+                if cursor.fetchone()[0] == 0:
+                    cursor.execute("""
+                        INSERT INTO grievances (user_email, grievant, occ_date, articles, step, steward, committeeman, facts, remedy, evidence_image, timestamp)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        str(row.get("user_email", "")),
+                        str(row.get("grievant", "")),
+                        str(row.get("occ_date", "")),
+                        str(row.get("articles", "")),
+                        str(row.get("step", "")),
+                        str(row.get("steward", "")),
+                        str(row.get("committeeman", "")),
+                        str(row.get("facts", "")),
+                        str(row.get("remedy", "")),
+                        str(row.get("evidence_image", "No Image")),
+                        str(row.get("timestamp", datetime.now()))
+                    ))
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            print(f"Error restoring from Excel: {e}")
+    return False
+
 def init_db():
     conn = sqlite3.connect(DB_NAME, timeout=10.0)
     cursor = conn.cursor()
@@ -137,30 +173,10 @@ def init_db():
         )
     """)
     
-    # Auto-recovery: If database is empty, load from grievance_backup.xlsx if it exists
+    # Auto-recovery on boot
     cursor.execute("SELECT COUNT(*) FROM grievances")
-    if cursor.fetchone()[0] == 0 and os.path.exists(BACKUP_FILE):
-        try:
-            df_backup = pd.read_excel(BACKUP_FILE)
-            for _, row in df_backup.iterrows():
-                cursor.execute("""
-                    INSERT INTO grievances (user_email, grievant, occ_date, articles, step, steward, committeeman, facts, remedy, evidence_image, timestamp)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    str(row.get("user_email", "")),
-                    str(row.get("grievant", "")),
-                    str(row.get("occ_date", "")),
-                    str(row.get("articles", "")),
-                    str(row.get("step", "")),
-                    str(row.get("steward", "")),
-                    str(row.get("committeeman", "")),
-                    str(row.get("facts", "")),
-                    str(row.get("remedy", "")),
-                    str(row.get("evidence_image", "No Image")),
-                    str(row.get("timestamp", datetime.now()))
-                ))
-        except Exception as e:
-            print(f"Error restoring grievance backup: {e}")
+    if cursor.fetchone()[0] == 0:
+        restore_db_from_excel()
     
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS master_documents (
@@ -264,7 +280,7 @@ def save_grievance(email, grievant, date, articles, step, steward, committeeman,
     """, (email.strip().lower(), grievant, date, articles, step, steward, committeeman, facts, remedy, image_name))
     conn.commit()
     conn.close()
-    sync_db_to_excel() # Automatically update Excel sheet on save
+    sync_db_to_excel()
 
 def update_grievance(g_id, grievant, date, articles, step, steward, committeeman, facts, remedy):
     conn = sqlite3.connect(DB_NAME, timeout=10.0)
@@ -276,7 +292,7 @@ def update_grievance(g_id, grievant, date, articles, step, steward, committeeman
     """, (grievant, date, articles, step, steward, committeeman, facts, remedy, g_id))
     conn.commit()
     conn.close()
-    sync_db_to_excel() # Automatically update Excel sheet on update
+    sync_db_to_excel()
 
 def delete_grievance(g_id):
     conn = sqlite3.connect(DB_NAME, timeout=10.0)
@@ -284,7 +300,7 @@ def delete_grievance(g_id):
     cursor.execute("DELETE FROM grievances WHERE id = ?", (g_id,))
     conn.commit()
     conn.close()
-    sync_db_to_excel() # Automatically update Excel sheet on delete
+    sync_db_to_excel()
 
 def load_grievances():
     conn = sqlite3.connect(DB_NAME, timeout=10.0)
@@ -451,6 +467,15 @@ with tab2:
 
     with col2:
         st.subheader("Active Pipeline Telemetry")
+        
+        # --- SYNC BUTTON FOR EXCEL BACKUP ---
+        if st.button("🔄 Sync Pipeline from Excel Backup"):
+            if restore_db_from_excel():
+                st.success("✅ Successfully pulled all records from `grievance_backup.xlsx`!")
+                st.rerun()
+            else:
+                st.warning("⚠️ No valid `grievance_backup.xlsx` file found in root.")
+
         df = load_grievances()
         if not df.empty:
             st.dataframe(df[["id", "user_email", "grievant", "occ_date", "articles", "step", "steward", "committeeman", "timestamp"]], use_container_width=True)
