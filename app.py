@@ -126,6 +126,31 @@ def init_db():
         )
     """)
     
+    # Auto-recovery: If database is empty, load from grievance_backup.xlsx if it exists in the repo root
+    cursor.execute("SELECT COUNT(*) FROM grievances")
+    if cursor.fetchone()[0] == 0 and os.path.exists("grievance_backup.xlsx"):
+        try:
+            df_backup = pd.read_excel("grievance_backup.xlsx")
+            for _, row in df_backup.iterrows():
+                cursor.execute("""
+                    INSERT INTO grievances (user_email, grievant, occ_date, articles, step, steward, committeeman, facts, remedy, evidence_image, timestamp)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    str(row.get("user_email", "")),
+                    str(row.get("grievant", "")),
+                    str(row.get("occ_date", "")),
+                    str(row.get("articles", "")),
+                    str(row.get("step", "")),
+                    str(row.get("steward", "")),
+                    str(row.get("committeeman", "")),
+                    str(row.get("facts", "")),
+                    str(row.get("remedy", "")),
+                    str(row.get("evidence_image", "No Image")),
+                    str(row.get("timestamp", datetime.now()))
+                ))
+        except Exception as e:
+            print(f"Error restoring grievance backup: {e}")
+    
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS master_documents (
             doc_type TEXT PRIMARY KEY,
@@ -165,9 +190,7 @@ def init_db():
 init_db()
 
 def get_authorized_users_df():
-    """Loads authorized users directly from apps.access.xlsx in the root repo directory"""
     users_data = {ADMIN_EMAIL.lower(): ADMIN_PIN}
-    
     if os.path.exists("apps.access.xlsx"):
         try:
             df_access = pd.read_excel("apps.access.xlsx")
@@ -184,7 +207,6 @@ def get_authorized_users_df():
                     users_data[em] = pi
         except Exception as e:
             print(f"Error reading apps.access.xlsx: {e}")
-            
     return users_data
 
 def verify_credentials(email, pin):
@@ -475,6 +497,33 @@ with tab_safety:
 with tab3:
     if st.session_state.user_email == ADMIN_EMAIL.lower():
         st.subheader("⚙️ SYSTEM ADMIN // REPOSITORY CONTROL")
+        
+        # --- NEW GRIEVANCE BACKUP EXPORT TOOL ---
+        st.markdown("#### 📥 Pipeline Data Backup")
+        st.markdown("Download your current grievances into a backup file (`grievance_backup.xlsx`). Upload this file to your GitHub repository root if you ever want to permanently protect or restore your pipeline data across reboots.")
+        
+        df_all_grievances = load_grievances()
+        if not df_all_grievances.empty:
+            backup_file_name = f"grievance_backup_{datetime.now().strftime('%Y%m%d')}.xlsx"
+            
+            # Convert dataframe to excel bytes for download
+            from io import BytesIO
+            output = BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df_all_grievances.to_excel(writer, index=False, sheet_name='Grievances')
+            excel_data = output.getvalue()
+            
+            st.download_button(
+                label="📥 DOWNLOAD CURRENT GRIEVANCES EXCEL BACKUP",
+                data=excel_data,
+                file_name="grievance_backup.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                type="primary"
+            )
+        else:
+            st.info("No grievances logged yet to back up.")
+            
+        st.markdown("---")
         
         col_doc1, col_doc2, col_doc3 = st.columns(3)
         
