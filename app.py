@@ -163,28 +163,9 @@ def restore_db_from_excel():
             cursor = conn.cursor()
             df_backup = pd.read_excel(BACKUP_FILE)
             for _, row in df_backup.iterrows():
-                cursor.execute("""
-                    SELECT COUNT(*) FROM grievances 
-                    WHERE grievant = ? AND occ_date = ? AND articles = ?
-                """, (str(row.get("grievant", "")), str(row.get("occ_date", "")), str(row.get("articles", ""))))
-                
+                cursor.execute("SELECT COUNT(*) FROM grievances WHERE grievant = ? AND occ_date = ? AND articles = ?", (str(row.get("grievant", "")), str(row.get("occ_date", "")), str(row.get("articles", ""))))
                 if cursor.fetchone()[0] == 0:
-                    cursor.execute("""
-                        INSERT INTO grievances (user_email, grievant, occ_date, articles, step, steward, committeeman, facts, remedy, evidence_image, timestamp)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        str(row.get("user_email", "")),
-                        str(row.get("grievant", "")),
-                        str(row.get("occ_date", "")),
-                        str(row.get("articles", "")),
-                        str(row.get("step", "")),
-                        str(row.get("steward", "")),
-                        str(row.get("committeeman", "")),
-                        str(row.get("facts", "")),
-                        str(row.get("remedy", "")),
-                        str(row.get("evidence_image", "No Image")),
-                        str(row.get("timestamp", datetime.now()))
-                    ))
+                    cursor.execute("INSERT INTO grievances (user_email, grievant, occ_date, articles, step, steward, committeeman, facts, remedy, evidence_image, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (str(row.get("user_email", "")), str(row.get("grievant", "")), str(row.get("occ_date", "")), str(row.get("articles", "")), str(row.get("step", "")), str(row.get("steward", "")), str(row.get("committeeman", "")), str(row.get("facts", "")), str(row.get("remedy", "")), str(row.get("evidence_image", "No Image")), str(row.get("timestamp", datetime.now()))))
             conn.commit()
             conn.close()
             return True
@@ -196,35 +177,11 @@ def restore_db_from_excel():
 def init_db():
     conn = sqlite3.connect(DB_NAME, timeout=10.0)
     cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS grievances (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_email TEXT,
-            grievant TEXT,
-            occ_date TEXT,
-            articles TEXT,
-            step TEXT,
-            steward TEXT,
-            committeeman TEXT,
-            facts TEXT,
-            remedy TEXT,
-            evidence_image TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    cursor.execute("CREATE TABLE IF NOT EXISTS grievances (id INTEGER PRIMARY KEY AUTOINCREMENT, user_email TEXT, grievant TEXT, occ_date TEXT, articles TEXT, step TEXT, steward TEXT, committeeman TEXT, facts TEXT, remedy TEXT, evidence_image TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)")
     cursor.execute("SELECT COUNT(*) FROM grievances")
     if cursor.fetchone()[0] == 0:
         restore_db_from_excel()
-        
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS master_documents (
-            doc_type TEXT PRIMARY KEY,
-            pdf_data BLOB,
-            file_name TEXT,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    
+    cursor.execute("CREATE TABLE IF NOT EXISTS master_documents (doc_type TEXT PRIMARY KEY, pdf_data BLOB, file_name TEXT, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
     cursor.execute("SELECT COUNT(*) FROM master_documents WHERE doc_type = 'contract'")
     if cursor.fetchone()[0] == 0:
         potential_contract_files = [f for f in os.listdir(BASE_DIR) if f.lower().endswith(".pdf") and ("bla" in f.lower() or "contract" in f.lower())]
@@ -232,11 +189,7 @@ def init_db():
             c_file = potential_contract_files[0]
             with open(os.path.join(BASE_DIR, c_file), "rb") as f:
                 pdf_bytes = f.read()
-            cursor.execute("""
-                INSERT OR REPLACE INTO master_documents (doc_type, pdf_data, file_name, updated_at)
-                VALUES ('contract', ?, ?, CURRENT_TIMESTAMP)
-            """, (pdf_bytes, c_file))
-            
+            cursor.execute("INSERT OR REPLACE INTO master_documents (doc_type, pdf_data, file_name, updated_at) VALUES ('contract', ?, ?, CURRENT_TIMESTAMP)", (pdf_bytes, c_file))
     cursor.execute("SELECT COUNT(*) FROM master_documents WHERE doc_type = 'handbook'")
     if cursor.fetchone()[0] == 0:
         potential_handbook_files = [f for f in os.listdir(BASE_DIR) if f.lower().endswith(".pdf") and "handbook" in f.lower()]
@@ -244,11 +197,7 @@ def init_db():
             h_file = potential_handbook_files[0]
             with open(os.path.join(BASE_DIR, h_file), "rb") as f:
                 pdf_bytes = f.read()
-            cursor.execute("""
-                INSERT OR REPLACE INTO master_documents (doc_type, pdf_data, file_name, updated_at)
-                VALUES ('handbook', ?, ?, CURRENT_TIMESTAMP)
-            """, (pdf_bytes, h_file))
-            
+            cursor.execute("INSERT OR REPLACE INTO master_documents (doc_type, pdf_data, file_name, updated_at) VALUES ('handbook', ?, ?, CURRENT_TIMESTAMP)", (pdf_bytes, h_file))
     conn.commit()
     conn.close()
 
@@ -287,10 +236,7 @@ def save_document_to_db(doc_type, uploaded_file):
     conn = sqlite3.connect(DB_NAME, timeout=10.0)
     cursor = conn.cursor()
     pdf_bytes = uploaded_file.getvalue()
-    cursor.execute("""
-        INSERT OR REPLACE INTO master_documents (doc_type, pdf_data, file_name, updated_at)
-        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-    """, (doc_type, pdf_bytes, uploaded_file.name))
+    cursor.execute("INSERT OR REPLACE INTO master_documents (doc_type, pdf_data, file_name, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)", (doc_type, pdf_bytes, uploaded_file.name))
     conn.commit()
     conn.close()
 
@@ -312,10 +258,7 @@ def get_document_from_db(doc_type):
 def save_grievance(email, grievant, date, articles, step, steward, committeeman, facts, remedy, image_name):
     conn = sqlite3.connect(DB_NAME, timeout=10.0)
     cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO grievances (user_email, grievant, occ_date, articles, step, steward, committeeman, facts, remedy, evidence_image)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (email.strip().lower(), grievant, date, articles, step, steward, committeeman, facts, remedy, image_name))
+    cursor.execute("INSERT INTO grievances (user_email, grievant, occ_date, articles, step, steward, committeeman, facts, remedy, evidence_image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (email.strip().lower(), grievant, date, articles, step, steward, committeeman, facts, remedy, image_name))
     conn.commit()
     conn.close()
     sync_db_to_excel()
@@ -323,11 +266,7 @@ def save_grievance(email, grievant, date, articles, step, steward, committeeman,
 def update_grievance(g_id, grievant, date, articles, step, steward, committeeman, facts, remedy):
     conn = sqlite3.connect(DB_NAME, timeout=10.0)
     cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE grievances 
-        SET grievant = ?, occ_date = ?, articles = ?, step = ?, steward = ?, committeeman = ?, facts = ?, remedy = ?
-        WHERE id = ?
-    """, (grievant, date, articles, step, steward, committeeman, facts, remedy, g_id))
+    cursor.execute("UPDATE grievances SET grievant = ?, occ_date = ?, articles = ?, step = ?, steward = ?, committeeman = ?, facts = ?, remedy = ? WHERE id = ?", (grievant, date, articles, step, steward, committeeman, facts, remedy, g_id))
     conn.commit()
     conn.close()
     sync_db_to_excel()
@@ -469,227 +408,3 @@ with tab1:
                     
                     response = client.models.generate_content(
                         model="gemini-2.5-flash",
-                        contents=contents,
-                        config=types.GenerateContentConfig(
-                            system_instruction="You are an advanced tactical USW union contract and policy analyst assisting shop stewards. Provide precise, authoritative answers with exact article, section, and benefit plan citations.",
-                            temperature=0.2
-                        )
-                    )
-                    st.markdown("### INTELLIGENCE OUTPUT:")
-                    st.markdown(f"<div class='tech-card'>{response.text}</div>", unsafe_allow_html=True)
-                except Exception as e:
-                    st.error(f"Neural connection error: {e}")
-
-with tab2:
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("Log New Grievance Record")
-        with st.form("grievance_form"):
-            g_name = st.text_input("Grievant Name & Department")
-            g_date = st.text_input("Date of Occurrence")
-            g_articles = st.text_input("Contract Article(s) Violated")
-            g_step = st.selectbox("Current Step", ["Step 1 (Supervisor)", "Step 2 (HR / Dept Head)", "Step 3 (Plant Mgr)", "Arbitration"])
-            g_steward = st.text_input("Assigned Steward")
-            g_committeeman = st.text_input("Assigned Grievance Committeeman")
-            g_facts = st.text_area("Statement of Facts / Notes")
-            g_remedy = st.text_area("Remedy Demanded")
-            uploaded_image = st.file_uploader("Upload Evidence / Documentation", type=["png", "jpg", "jpeg"])
-            submitted = st.form_submit_button("COMMIT TO PIPELINE", type="primary")
-            
-            if submitted:
-                if not g_name or not g_articles:
-                    st.error("⚠️ Grievant Name and Article(s) are required fields.")
-                else:
-                    img_name = uploaded_image.name if uploaded_image is not None else "No Image"
-                    save_grievance(st.session_state.user_email, g_name, g_date, g_articles, g_step, g_steward, g_committeeman, g_facts, g_remedy, img_name)
-                    st.success("✅ Grievance logged & automatically backed up to Excel!")
-                    st.rerun()
-
-    with col2:
-        st.subheader("Active Pipeline Telemetry")
-        if st.button("🔄 Sync Pipeline from Excel Backup"):
-            if restore_db_from_excel():
-                st.success("✅ Successfully pulled all records from 'grievance_backup.xlsx'!")
-                st.rerun()
-            else:
-                st.warning("⚠️ No valid 'grievance_backup.xlsx' file found in root.")
-                
-        df = load_grievances()
-        if not df.empty:
-            st.dataframe(df[["id", "user_email", "grievant", "occ_date", "articles", "step", "steward", "committeeman", "timestamp"]], use_container_width=True)
-        else:
-            st.info("Pipeline telemetry empty.")
-
-with tab_safety:
-    st.subheader("👥 Union Safety Rep & Union Safety Committee")
-    st.markdown("Official Plant Safety Committee Directory & Plant FAP Contacts (Rev. 8/31/2026)")
-    safety_data = [
-        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Sean Els - Safety Committee Chair - USR, Training", "Clock #": "001-002", "Turn": "Days", "Crew": "", "Phone": "(330) 495-7614", "Email": "sean.l.els@metallus.com (Work ext. 2913)"},
-        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Scott Mathie - USR, Training", "Clock #": "001-800", "Turn": "Days", "Crew": "", "Phone": "(330) 412-6508", "Email": "robert.s.mathie@metallus.com (Work ext. 3967)"},
-        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Curtis Green - USR, Compliance", "Clock #": "001-502", "Turn": "Days", "Crew": "", "Phone": "(330) 949-5148", "Email": "curtis.e.green@metallus.com (Work ext. 4716)"},
-        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Tim Johnson - USR, Plant & Shops", "Clock #": "001-003", "Turn": "Days", "Crew": "", "Phone": "(330) 933-0824", "Email": "timothy.j.johnson@metallus.com (Work ext. 5026)"},
-        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Chad Steiner - Machine Shop", "Clock #": "181-062", "Turn": "Days", "Crew": "", "Phone": "(740) 391-0555", "Email": ""},
-        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Dave Ramsey - Finishing", "Clock #": "133-022", "Turn": "4", "Crew": "B", "Phone": "(330) 265-7701", "Email": ""},
-        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Brad Holston - Equipment Rebuild", "Clock #": "181-001", "Turn": "Days", "Crew": "", "Phone": "(330) 347-1188", "Email": ""},
-        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Steve Carlisle - Weld Shop", "Clock #": "181-505", "Turn": "Days", "Crew": "", "Phone": "(330) 340-0876", "Email": ""},
-        {"Plant / Location": "Harrison Steel Plant (HSP)", "Name / Area": "Seth McKenzie - Finishing", "Clock #": "133-029", "Turn": "4", "Crew": "C", "Phone": "(330) 232-5536", "Email": ""},
-        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "John Lidderdale - USR, Steelmaking", "Clock #": "001-801", "Turn": "Days", "Crew": "", "Phone": "(330) 209-1254", "Email": "john.t.lidderdale@metallus.com (Work ext. 4682)"},
-        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Mike Henderson - USR, Steel Processing", "Clock #": "001-804", "Turn": "Days", "Crew": "", "Phone": "(330) 428-2503", "Email": "michael.l.henderson@metallus.com (Work ext. 7360)"},
-        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Chuck Fetrow - BC", "Clock #": "250-084", "Turn": "3", "Crew": "C", "Phone": "(330) 488-4765", "Email": ""},
-        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Mike Kiser - Mech. Maint. Rolling Mill", "Clock #": "282-012", "Turn": "4", "Crew": "B", "Phone": "(330) 934-1190", "Email": ""},
-        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Jeff Thomas - Rolling Mill", "Clock #": "282-040", "Turn": "4", "Crew": "B", "Phone": "(330) 446-8285", "Email": ""},
-        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Adam Holland - Caster", "Clock #": "227-025", "Turn": "Days", "Crew": "", "Phone": "(330) 904-8489", "Email": ""},
-        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Daryl Smith - BC", "Clock #": "250-025", "Turn": "3", "Crew": "C", "Phone": "(330) 418-6012", "Email": ""},
-        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Alan Tack - Chem Lab", "Clock #": "008-003", "Turn": "4", "Crew": "B", "Phone": "(330) 323-5315", "Email": ""},
-        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Alex Rue - EAF", "Clock #": "218-054", "Turn": "4", "Crew": "C", "Phone": "(330) 606-5792", "Email": ""},
-        {"Plant / Location": "Faircrest Steel Plant (FSP)", "Name / Area": "Brandon Bartrug - EAF", "Clock #": "218-058", "Turn": "Days", "Crew": "", "Phone": "(740) 391-0109", "Email": ""},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Brock McDevitt - USR, Tube Mills & Thermal Treat", "Clock #": "001-500", "Turn": "Days", "Crew": "", "Phone": "(330) 432-0705", "Email": "brock.a.mcdevitt@metallus.com (Work ext. 4249)"},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Shawn Lindner - USR, Finishing & Logistics", "Clock #": "001-501", "Turn": "Days", "Crew": "", "Phone": "(330) 575-4435", "Email": "shawn.lindner@metallus.com (Work ext. 5083)"},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Carrie Holland - IFL", "Clock #": "752-408", "Turn": "4", "Crew": "D", "Phone": "(330) 933-6620", "Email": ""},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Mike Kemp - 5 Tube Mill", "Clock #": "750-041", "Turn": "3", "Crew": "A", "Phone": "(330) 268-6375", "Email": ""},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Jason Ensinger - 3TM", "Clock #": "750-306", "Turn": "2", "Crew": "H", "Phone": "(330) 956-0178", "Email": ""},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Ed Smith - IFL", "Clock #": "752-002", "Turn": "Days", "Crew": "", "Phone": "(330) 949-7623", "Email": ""},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Jon Burdge - Logistics, Shipping", "Clock #": "190-078", "Turn": "Days", "Crew": "", "Phone": "(330) 224-2778", "Email": ""},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Marty Gugov - Logistics, Shipping", "Clock #": "190-019", "Turn": "2", "Crew": "B", "Phone": "(330) 437-5967", "Email": ""},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Ken Rayburn - Logistics, Shipping", "Clock #": "190-036", "Turn": "4", "Crew": "C", "Phone": "(330) 809-3183", "Email": ""},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Alex Hunt - Quench/Temper", "Clock #": "756-025", "Turn": "3", "Crew": "B", "Phone": "(330) 413-4839", "Email": ""},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Joe Plott - Thermal Treat, Islands", "Clock #": "185-527", "Turn": "4", "Crew": "C", "Phone": "(330) 428-1716", "Email": ""},
-        {"Plant / Location": "Gambrinus Steel Plant (GSP)", "Name / Area": "Marc Armstead - Met Lab", "Clock #": "007-021", "Turn": "2", "Crew": "Midnights", "Phone": "(330) 844-6363", "Email": ""},
-        {"Plant / Location": "FAP Leads - Plant", "Name / Area": "Carrie Holland - GSP, IFL", "Clock #": "752-408", "Turn": "Days", "Crew": "", "Phone": "(330) 933-6620", "Email": ""},
-        {"Plant / Location": "FAP Leads - Plant", "Name / Area": "Chuck Fetrow - FSP, BC", "Clock #": "250-084", "Turn": "3", "Crew": "A", "Phone": "(330) 488-4765", "Email": ""},
-        {"Plant / Location": "FAP Leads - Plant", "Name / Area": "Greg Smith - HSP, Machine Shop", "Clock #": "181-025", "Turn": "Days", "Crew": "", "Phone": "(330) 437-8015", "Email": ""}
-    ]
-    df_safety = pd.DataFrame(safety_data)
-    search_term = st.text_input("🔍 Search Directory by Name, Plant, or Area:", "")
-    if search_term:
-        mask = df_safety.apply(lambda row: row.astype(str).str.contains(search_term, case=False).any(), axis=1)
-        df_filtered = df_safety[mask]
-    else:
-        df_filtered = df_safety
-    st.dataframe(df_filtered, use_container_width=True, hide_index=True)
-
-with tab3:
-    if st.session_state.user_email == ADMIN_EMAIL.lower():
-        st.subheader("⚙️ SYSTEM ADMIN // REPOSITORY CONTROL")
-        st.markdown("#### Pipeline Data Backup Status")
-        st.markdown(f"The app automatically syncs all grievances live to `{BACKUP_FILE}` in the server root whenever a record is logged, updated, or deleted.")
-        
-        df_all_grievances = load_grievances()
-        if not df_all_grievances.empty:
-            from io import BytesIO
-            output = BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df_all_grievances.to_excel(writer, index=False, sheet_name='Grievances')
-            excel_data = output.getvalue()
-            st.download_button(
-                label="📥 DOWNLOAD MANUAL BACKUP COPY",
-                data=excel_data,
-                file_name="grievance_backup.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                type="primary"
-            )
-        else:
-            st.info("No grievances logged yet.")
-            
-        st.markdown("---")
-        col_doc1, col_doc2, col_doc3 = st.columns(3)
-        with col_doc1:
-            st.markdown("#### Master Contract (CBA)")
-            c_rec = get_document_from_db("contract")
-            if c_rec:
-                st.success(f"✅ Synced: **{c_rec[1]}**")
-                if st.button("🗑️ Purge Master Contract", key="del_contract"):
-                    delete_document_from_db("contract")
-                    st.success("Contract purged.")
-                    st.rerun()
-            else:
-                st.warning("Repository Empty.")
-            new_contract = st.file_uploader("Upload / Overwrite Master Contract (PDF)", type=["pdf"], key="upload_c")
-            if new_contract:
-                save_document_to_db("contract", new_contract)
-                st.success("✅ Master Contract locked into database!")
-                st.rerun()
-                
-        with col_doc2:
-            st.markdown("#### Employee Handbook")
-            h_rec = get_document_from_db("handbook")
-            if h_rec:
-                st.success(f"✅ Synced: **{h_rec[1]}**")
-                if st.button("🗑️ Purge Handbook", key="del_handbook"):
-                    delete_document_from_db("handbook")
-                    st.success("Handbook purged.")
-                    st.rerun()
-            else:
-                st.info("Repository Empty.")
-            new_handbook = st.file_uploader("Upload / Overwrite Handbook (PDF)", type=["pdf"], key="upload_h")
-            if new_handbook:
-                save_document_to_db("handbook", new_handbook)
-                st.success("✅ Employee Handbook locked into database!")
-                st.rerun()
-                
-        with col_doc3:
-            st.markdown("#### Employee Benefits")
-            b_rec = get_document_from_db("employee_benefits")
-            if b_rec:
-                st.success(f"✅ Synced: **{b_rec[1]}**")
-                if st.button("🗑️ Purge Benefits", key="del_benefits"):
-                    delete_document_from_db("employee_benefits")
-                    st.success("Benefits purged.")
-                    st.rerun()
-            else:
-                st.info("Repository Empty.")
-            new_benefits = st.file_uploader("Upload / Overwrite Benefits (PDF)", type=["pdf"], key="upload_b")
-            if new_benefits:
-                save_document_to_db("employee_benefits", new_benefits)
-                st.success("✅ Employee Benefits locked into database!")
-                st.rerun()
-                
-        st.markdown("---")
-        st.subheader("🛠️ Pipeline Record Modification")
-        df_grievances = load_grievances()
-        if not df_grievances.empty:
-            grievant_options = {f"ID {row['id']}: {row['grievant']} ({row['articles']})": row['id'] for index, row in df_grievances.iterrows()}
-            selected_label = st.selectbox("Select Record to Modify", options=list(grievant_options.keys()))
-            selected_id = grievant_options[selected_label]
-            record = df_grievances[df_grievances['id'] == selected_id].iloc[0]
-            
-            with st.form("edit_grievance_form"):
-                st.markdown(f"**Modifying Record ID: {selected_id}** (Origin: {record['user_email']})")
-                e_name = st.text_input("Grievant Name & Department", value=record['grievant'])
-                e_date = st.text_input("Date of Occurrence", value=record['occ_date'])
-                e_articles = st.text_input("Contract Article(s) Violated", value=record['articles'])
-                steps_list = ["Step 1 (Supervisor)", "Step 2 (HR / Dept Head)", "Step 3 (Plant Mgr)", "Arbitration"]
-                default_step_idx = steps_list.index(record['step']) if record['step'] in steps_list else 0
-                e_step = st.selectbox("Current Step", steps_list, index=default_step_idx)
-                e_steward = st.text_input("Assigned Steward", value=record['steward'])
-                e_committeeman = st.text_input("Assigned Grievance Committeeman", value=record['committeeman'] if record['committeeman'] else "")
-                e_facts = st.text_area("Statement of Facts / Notes", value=record['facts'])
-                e_remedy = st.text_area("Remedy Demanded", value=record['remedy'])
-                
-                col_update, col_delete = st.columns(2)
-                with col_update:
-                    update_submitted = st.form_submit_button("⚡ UPDATE RECORD", type="primary")
-                with col_delete:
-                    delete_submitted = st.form_submit_button("⚠️ PURGE RECORD", type="secondary")
-                    
-                if update_submitted:
-                    update_grievance(selected_id, e_name, e_date, e_articles, e_step, e_steward, e_committeeman, e_facts, e_remedy)
-                    st.success(f"✅ Record ID {selected_id} updated successfully!")
-                    st.rerun()
-                if delete_submitted:
-                    delete_grievance(selected_id)
-                    st.success(f"⚠️ Record ID {selected_id} purged from database!")
-                    st.rerun()
-        else:
-            st.info("No records in pipeline to modify.")
-            
-        st.markdown("---")
-        st.subheader("👥 Access Control Matrix (Loaded Live from root 'apps.access.xlsx')")
-        users_dict = get_authorized_users_df()
-        df_access_list = pd.DataFrame(list(users_dict.items()), columns=["Authorized Email", "Access PIN"])
-        if not df_access_list.empty:
-            st.dataframe(df_access_list, use_container_width=True, hide_index=True)
-        else:
-            st.warning("⚠️ No emails found in apps.access.xlsx. Check file formatting.")
-    else:
-        st.warning("🚨 RESTRICTED ZONE: Root Admin Privileges Required.")
