@@ -162,3 +162,173 @@ def restore_db_from_excel():
                         str(row.get("step", "")),
                         str(row.get("steward", "")),
                         str(row.get("committeeman", "")),
+                        str(row.get("facts", "")),
+                        str(row.get("remedy", "")),
+                        str(row.get("evidence_image", "No Image")),
+                        str(row.get("timestamp", datetime.now()))
+                    ))
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            print(f"Error restoring from Excel: {e}")
+            return False
+    return False
+
+def init_db():
+    conn = sqlite3.connect(DB_NAME, timeout=10.0)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS grievances (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_email TEXT,
+            grievant TEXT,
+            occ_date TEXT,
+            articles TEXT,
+            step TEXT,
+            steward TEXT,
+            committeeman TEXT,
+            facts TEXT,
+            remedy TEXT,
+            evidence_image TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    # Auto-recovery on boot
+    cursor.execute("SELECT COUNT(*) FROM grievances")
+    if cursor.fetchone()[0] == 0:
+        restore_db_from_excel()
+        
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS master_documents (
+            doc_type TEXT PRIMARY KEY,
+            pdf_data BLOB,
+            file_name TEXT,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
+    cursor.execute("SELECT COUNT(*) FROM master_documents WHERE doc_type = 'contract'")
+    if cursor.fetchone()[0] == 0:
+        potential_contract_files = [f for f in os.listdir(BASE_DIR) if f.lower().endswith(".pdf") and ("bla" in f.lower() or "contract" in f.lower())]
+        if potential_contract_files:
+            c_file = potential_contract_files[0]
+            with open(os.path.join(BASE_DIR, c_file), "rb") as f:
+                pdf_bytes = f.read()
+            cursor.execute("""
+                INSERT OR REPLACE INTO master_documents (doc_type, pdf_data, file_name, updated_at)
+                VALUES ('contract', ?, ?, CURRENT_TIMESTAMP)
+            """, (pdf_bytes, c_file))
+            
+    cursor.execute("SELECT COUNT(*) FROM master_documents WHERE doc_type = 'handbook'")
+    if cursor.fetchone()[0] == 0:
+        potential_handbook_files = [f for f in os.listdir(BASE_DIR) if f.lower().endswith(".pdf") and "handbook" in f.lower()]
+        if potential_handbook_files:
+            h_file = potential_handbook_files[0]
+            with open(os.path.join(BASE_DIR, h_file), "rb") as f:
+                pdf_bytes = f.read()
+            cursor.execute("""
+                INSERT OR REPLACE INTO master_documents (doc_type, pdf_data, file_name, updated_at)
+                VALUES ('handbook', ?, ?, CURRENT_TIMESTAMP)
+            """, (pdf_bytes, h_file))
+            
+    conn.commit()
+    conn.close()
+
+init_db()
+
+def get_authorized_users_df():
+    users_data = {ADMIN_EMAIL.lower(): ADMIN_PIN}
+    access_file = os.path.join(BASE_DIR, "apps.access.xlsx")
+    if os.path.exists(access_file):
+        try:
+            df_access = pd.read_excel(access_file)
+            df_access.columns = [str(c).strip().lower() for c in df_access.columns]
+            email_col = next((c for c in df_access.columns if 'email' in c), df_access.columns[0])
+            pin_col = next((c for c in df_access.columns if 'pin' in c or 'code' in c), df_access.columns[1] if len(df_access.columns) > 1 else None)
+            for _, row in df_access.iterrows():
+                em = str(row[email_col]).strip().lower()
+                if "@" in em:
+                    pi = str(row[pin_col]).strip() if pin_col and pd.notna(row[pin_col]) else "1234"
+                    if pi.endswith('.0'):
+                        pi = pi[:-2]
+                    users_data[em] = pi
+        except Exception as e:
+            print(f"Error reading apps.access.xlsx: {e}")
+    return users_data
+
+def verify_credentials(email, pin):
+    if not email or "@" not in email or not pin:
+        return False
+    users_dict = get_authorized_users_df()
+    clean_email = email.strip().lower()
+    if clean_email in users_dict and users_dict[clean_email] == pin.strip():
+        return True
+    return False
+
+def save_document_to_db(doc_type, uploaded_file):
+    conn = sqlite3.connect(DB_NAME, timeout=10.0)
+    cursor = conn.cursor()
+    pdf_bytes = uploaded_file.getvalue()
+    cursor.execute("""
+        INSERT OR REPLACE INTO master_documents (doc_type, pdf_data, file_name, updated_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+    """, (doc_type, pdf_bytes, uploaded_file.name))
+    conn.commit()
+    conn.close()
+
+def delete_document_from_db(doc_type):
+    conn = sqlite3.connect(DB_NAME, timeout=10.0)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM master_documents WHERE doc_type = ?", (doc_type,))
+    conn.commit()
+    conn.close()
+
+def get_document_from_db(doc_type):
+    conn = sqlite3.connect(DB_NAME, timeout=10.0)
+    cursor = conn.cursor()
+    cursor.execute("SELECT pdf_data, file_name FROM master_documents WHERE doc_type = ?", (doc_type,))
+    row = cursor.fetchone()
+    conn.close()
+    return row
+
+def save_grievance(email, grievant, date, articles, step, steward, committeeman, facts, remedy, image_name):
+    conn = sqlite3.connect(DB_NAME, timeout=10.0)
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO grievances (user_email, grievant, occ_date, articles, step, steward, committeeman, facts, remedy, evidence_image)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (email.strip().lower(), grievant, date, articles, step, steward, committeeman, facts, remedy, image_name))
+    conn.commit()
+    conn.close()
+    sync_db_to_excel()
+
+def update_grievance(g_id, grievant, date, articles, step, steward, committeeman, facts, remedy):
+    conn = sqlite3.connect(DB_NAME, timeout=10.0)
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE grievances 
+        SET grievant = ?, occ_date = ?, articles = ?, step = ?, steward = ?, committeeman = ?, facts = ?, remedy = ?
+        WHERE id = ?
+    """, (grievant, date, articles, step, steward, committeeman, facts, remedy, g_id))
+    conn.commit()
+    conn.close()
+    sync_db_to_excel()
+
+def delete_grievance(g_id):
+    conn = sqlite3.connect(DB_NAME, timeout=10.0)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM grievances WHERE id = ?", (g_id,))
+    conn.commit()
+    conn.close()
+    sync_db_to_excel()
+
+def load_grievances():
+    conn = sqlite3.connect(DB_NAME, timeout=10.0)
+    df = pd.read_sql_query("SELECT * FROM grievances ORDER BY timestamp DESC", conn)
+    conn.close()
+    return df
+
+def get_gemini_key():
+    if os.environ.get("GEMINI_API_KEY"):
+        return os
