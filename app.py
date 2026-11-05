@@ -316,30 +316,4 @@ def save_grievance(email, grievant, date, articles, step, steward, committeeman,
         INSERT INTO grievances (user_email, grievant, occ_date, articles, step, steward, committeeman, facts, remedy, evidence_image)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (email.strip().lower(), grievant, date, articles, step, steward, committeeman, facts, remedy, image_name))
-    conn.commit()
-    conn.close()
-    sync_db_to_excel()
-
-def update_grievance(g_id, grievant, date, articles, step, steward, committeeman, facts, remedy):
-    conn = sqlite3.connect(DB_NAME, timeout=10.0)
-    cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE grievances 
-        SET grievant = ?, occ_date = ?, articles = ?, step = ?, steward = ?, committeeman = ?, facts = ?, remedy = ?
-        WHERE id = ?
-    """, (grievant, date, articles, step, steward, committeeman, facts, remedy, g_id))
-    conn.commit()
-    conn.close()
-    sync_db_to_excel()
-
-def delete_grievance(g_id):
-    conn = sqlite3.connect(DB_NAME, timeout=10.0)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM grievances WHERE id = ?", (g_id,))
-    conn.commit()
-    conn.close()
-    sync_db_to_excel()
-
-def load_grievances():
-    conn = sqlite3.connect(DB_NAME, timeout=10.0)
-    df = pd.read_sql_query("SELECT *
+    conn.commit
