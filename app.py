@@ -580,4 +580,83 @@ with tab3:
         with col_doc2:
             st.markdown("#### Employee Handbook")
             h_rec = get_document_from_db("handbook")
-            if
+            if h_rec:
+                st.success(f"✅ Synced: **{h_rec[1]}**")
+                if st.button("🗑️ Purge Handbook", key="del_handbook"):
+                    delete_document_from_db("handbook")
+                    st.success("Handbook purged.")
+                    st.rerun()
+            else:
+                st.info("Repository Empty.")
+            new_handbook = st.file_uploader("Upload / Overwrite Handbook (PDF)", type=["pdf"], key="upload_h")
+            if new_handbook:
+                save_document_to_db("handbook", new_handbook)
+                st.success("✅ Employee Handbook locked into database!")
+                st.rerun()
+                
+        with col_doc3:
+            st.markdown("#### Employee Benefits")
+            b_rec = get_document_from_db("employee_benefits")
+            if b_rec:
+                st.success(f"✅ Synced: **{b_rec[1]}**")
+                if st.button("🗑️ Purge Benefits", key="del_benefits"):
+                    delete_document_from_db("employee_benefits")
+                    st.success("Benefits purged.")
+                    st.rerun()
+            else:
+                st.info("Repository Empty.")
+            new_benefits = st.file_uploader("Upload / Overwrite Benefits (PDF)", type=["pdf"], key="upload_b")
+            if new_benefits:
+                save_document_to_db("employee_benefits", new_benefits)
+                st.success("✅ Employee Benefits locked into database!")
+                st.rerun()
+                
+        st.markdown("---")
+        st.subheader("🛠️ Pipeline Record Modification")
+        df_grievances = load_grievances()
+        if not df_grievances.empty:
+            grievant_options = {f"ID {row['id']}: {row['grievant']} ({row['articles']})": row['id'] for index, row in df_grievances.iterrows()}
+            selected_label = st.selectbox("Select Record to Modify", options=list(grievant_options.keys()))
+            selected_id = grievant_options[selected_label]
+            record = df_grievances[df_grievances['id'] == selected_id].iloc[0]
+            
+            with st.form("edit_grievance_form"):
+                st.markdown(f"**Modifying Record ID: {selected_id}** (Origin: {record['user_email']})")
+                e_name = st.text_input("Grievant Name & Department", value=record['grievant'])
+                e_date = st.text_input("Date of Occurrence", value=record['occ_date'])
+                e_articles = st.text_input("Contract Article(s) Violated", value=record['articles'])
+                steps_list = ["Step 1 (Supervisor)", "Step 2 (HR / Dept Head)", "Step 3 (Plant Mgr)", "Arbitration"]
+                default_step_idx = steps_list.index(record['step']) if record['step'] in steps_list else 0
+                e_step = st.selectbox("Current Step", steps_list, index=default_step_idx)
+                e_steward = st.text_input("Assigned Steward", value=record['steward'])
+                e_committeeman = st.text_input("Assigned Grievance Committeeman", value=record['committeeman'] if record['committeeman'] else "")
+                e_facts = st.text_area("Statement of Facts / Notes", value=record['facts'])
+                e_remedy = st.text_area("Remedy Demanded", value=record['remedy'])
+                
+                col_update, col_delete = st.columns(2)
+                with col_update:
+                    update_submitted = st.form_submit_button("⚡ UPDATE RECORD", type="primary")
+                with col_delete:
+                    delete_submitted = st.form_submit_button("⚠️ PURGE RECORD", type="secondary")
+                    
+                if update_submitted:
+                    update_grievance(selected_id, e_name, e_date, e_articles, e_step, e_steward, e_committeeman, e_facts, e_remedy)
+                    st.success(f"✅ Record ID {selected_id} updated successfully!")
+                    st.rerun()
+                if delete_submitted:
+                    delete_grievance(selected_id)
+                    st.success(f"⚠️ Record ID {selected_id} purged from database!")
+                    st.rerun()
+        else:
+            st.info("No records in pipeline to modify.")
+            
+        st.markdown("---")
+        st.subheader("👥 Access Control Matrix (Loaded Live from root 'apps.access.xlsx')")
+        users_dict = get_authorized_users_df()
+        df_access_list = pd.DataFrame(list(users_dict.items()), columns=["Authorized Email", "Access PIN"])
+        if not df_access_list.empty:
+            st.dataframe(df_access_list, use_container_width=True, hide_index=True)
+        else:
+            st.warning("⚠️ No emails found in apps.access.xlsx. Check file formatting.")
+    else:
+        st.warning("🚨 RESTRICTED ZONE: Root Admin Privileges Required.")
