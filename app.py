@@ -118,7 +118,6 @@ DB_NAME = "union_grievances.db"
 ADMIN_EMAIL = "cfetrow0201@gmail.com"
 ADMIN_PIN = "4812"
 
-# Robust absolute pathing for root-level backup file
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 BACKUP_FILE = os.path.join(BASE_DIR, "grievance_backup.xlsx")
 
@@ -128,7 +127,6 @@ if "user_email" not in st.session_state:
     st.session_state.user_email = ""
 
 def sync_db_to_excel():
-    """Dumps all current database records into grievance_backup.xlsx automatically"""
     try:
         conn = sqlite3.connect(DB_NAME, timeout=10.0)
         df = pd.read_sql_query("SELECT * FROM grievances", conn)
@@ -138,7 +136,6 @@ def sync_db_to_excel():
         print(f"Error syncing to Excel: {e}")
 
 def restore_db_from_excel():
-    """Pulls all rows from grievance_backup.xlsx and re-inserts them into SQLite"""
     if os.path.exists(BACKUP_FILE):
         try:
             conn = sqlite3.connect(DB_NAME, timeout=10.0)
@@ -194,7 +191,6 @@ def init_db():
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    # Auto-recovery on boot
     cursor.execute("SELECT COUNT(*) FROM grievances")
     if cursor.fetchone()[0] == 0:
         restore_db_from_excel()
@@ -331,4 +327,14 @@ def load_grievances():
 
 def get_gemini_key():
     if os.environ.get("GEMINI_API_KEY"):
-        return os
+        return os.environ.get("GEMINI_API_KEY")
+    try:
+        if "GEMINI_API_KEY" in st.secrets:
+            return st.secrets["GEMINI_API_KEY"]
+    except Exception:
+        pass
+    return st.sidebar.text_input("🔑 Gemini API Key (Admin Override)", type="password", value="")
+
+current_time_str = datetime.now().strftime("%B %d, %Y — %I:%M:%S %p")
+base_ticker = f"⚡ TACTICAL HUD ONLINE: NORTH CANTON, OH &nbsp;&nbsp;|&nbsp;&nbsp; LOCAL TIME: {current_time_str} &nbsp;&nbsp;|&nbsp;&nbsp; AMBIENT TEMP: 44°F (CLEAR) &nbsp;&nbsp;|&nbsp;&nbsp; SYSTEM STATUS: SECURE & OPERATIONAL ⚡"
+ticker_text = (base_ticker + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&
